@@ -14,6 +14,7 @@
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://twemoji.maxcdn.com/v/14.0.2/twemoji.min.js"></script>
 
     <style>
         :root {
@@ -35,7 +36,7 @@
         }
 
         #sidebar {
-            position: fixed; left: 0; top: 50px; width: 200px; height: calc(100% - 150px);
+            position: fixed; left: 0; top: 50px; width: 220px; height: calc(100% - 150px);
             background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(10px);
             border-right: 1px solid rgba(255, 255, 255, 0.3);
@@ -43,7 +44,7 @@
         }
 
         #chat-window {
-            margin-left: 220px; padding: 20px;
+            margin-left: 240px; padding: 20px;
             height: calc(100% - 140px); overflow-y: auto;
             display: flex; flex-direction: column; gap: 20px;
         }
@@ -78,6 +79,23 @@
         }
         .left .bubble { background: var(--aero-white); color: #333; }
         .right .bubble { background: var(--aero-blue); color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.5); }
+
+        /* Rainbow animation for agentxbox! */
+        @keyframes rainbow {
+            0% { background: linear-gradient(to bottom, #ff0000 0%, #cc0000 100%); }
+            17% { background: linear-gradient(to bottom, #ffff00 0%, #cccc00 100%); }
+            33% { background: linear-gradient(to bottom, #00ff00 0%, #00cc00 100%); }
+            50% { background: linear-gradient(to bottom, #00ffff 0%, #00cccc 100%); }
+            67% { background: linear-gradient(to bottom, #0000ff 0%, #0000cc 100%); }
+            83% { background: linear-gradient(to bottom, #ff00ff 0%, #cc00cc 100%); }
+            100% { background: linear-gradient(to bottom, #ff0000 0%, #cc0000 100%); }
+        }
+        
+        .bubble.rainbow-bubble {
+            animation: rainbow 3s linear infinite;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
 
         /* Top buttons container */
         .top-buttons {
@@ -115,8 +133,31 @@
         #sendBtn { padding: 8px 20px; border-radius: 5px; border: 1px solid #333; cursor: pointer; background: #eee; }
 
         .user-item {
+            display: flex; align-items: center; gap: 8px;
             color: white; padding: 5px; margin: 2px 0;
             text-shadow: 1px 1px 2px black; border-radius: 3px;
+        }
+        
+        .user-pfp-area {
+            position: relative; width: 30px; height: 30px; flex-shrink: 0;
+        }
+        
+        .user-pfp-img {
+            width: 24px; height: 24px; margin: 3px; border-radius: 3px; object-fit: cover;
+        }
+        
+        .user-pfp-frame {
+            position: absolute; top: 0; left: 0; width: 30px; height: 30px; pointer-events: none;
+        }
+        
+        .user-name {
+            flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        
+        /* Twemoji styling */
+        .emoji {
+            height: 1.2em; width: 1.2em; margin: 0 0.05em 0 0.1em;
+            vertical-align: -0.1em; display: inline-block;
         }
     </style>
 </head>
@@ -177,6 +218,15 @@
     let myPfp = localStorage.getItem('pfp') || "pfps/defaults/pfpdefault1.png";
     document.getElementById('username-input').value = myUsername;
 
+    // Helper function to parse emojis with Twemoji
+    function parseEmojis(text) {
+        return twemoji.parse(text, {
+            folder: 'svg',
+            ext: '.svg',
+            className: 'emoji'
+        });
+    }
+
     // Track online users
     const usersRef = db.ref('users');
     const userList = document.getElementById('user-list');
@@ -201,7 +251,19 @@
             Object.values(users).forEach(user => {
                 const userDiv = document.createElement('div');
                 userDiv.className = 'user-item';
-                userDiv.textContent = user.username;
+                
+                userDiv.innerHTML = `
+                    <div class="user-pfp-area">
+                        <img src="${user.pfp || 'pfps/defaults/pfpdefault1.png'}" class="user-pfp-img">
+                        <img src="pfps/pfpframe.png" class="user-pfp-frame">
+                    </div>
+                    <span class="user-name">${user.username}</span>
+                `;
+                
+                // Parse emojis in username
+                const nameSpan = userDiv.querySelector('.user-name');
+                nameSpan.innerHTML = parseEmojis(user.username);
+                
                 userList.appendChild(userDiv);
             });
         }
@@ -215,7 +277,7 @@
         });
     }, 60000);
 
-    // --- 2. WALLPAPER ROTATION ---
+    // --- 2. WALLPAPER ROTATION (every 1 minute) ---
     const walls = ['wallpapers/wallpaper1.png', 'wallpapers/wallpaper2.png', 'wallpapers/wallpaper3.png'];
     let wIdx = 0;
     function rotateWall() {
@@ -223,7 +285,7 @@
         wIdx = (wIdx + 1) % walls.length;
     }
     rotateWall();
-    setInterval(rotateWall, 180000);
+    setInterval(rotateWall, 60000); // Changed from 180000 (3 min) to 60000 (1 min)
 
     // --- 3. SETTINGS LOGIC ---
     function toggleSettings() {
@@ -294,6 +356,7 @@ MORE NEW THINGS COMING SOON!!`);
     db.ref('messages').limitToLast(20).on('child_added', (snap) => {
         const data = snap.val();
         const isMe = data.user === myUsername;
+        const isAgentXbox = data.user === "agentxbox!";
         
         const wrap = document.createElement('div');
         wrap.className = `msg-wrapper ${isMe ? 'right' : 'left'}`;
@@ -302,7 +365,7 @@ MORE NEW THINGS COMING SOON!!`);
         
         wrap.innerHTML = `
             <span class="username-label">
-                ${data.user}
+                <span class="username-text">${data.user}</span>
                 <span class="timestamp-label">${timeStr}</span>
             </span>
             <div class="bubble-row">
@@ -310,13 +373,31 @@ MORE NEW THINGS COMING SOON!!`);
                     <img src="${data.pfp}" class="pfp-img">
                     <img src="pfps/pfpframe.png" class="pfp-frame">
                 </div>
-                <div class="bubble">${data.text}</div>
+                <div class="bubble ${isAgentXbox ? 'rainbow-bubble' : ''}">${data.text}</div>
             </div>
         `;
+        
+        // Parse emojis in username and message
+        const usernameSpan = wrap.querySelector('.username-text');
+        usernameSpan.innerHTML = parseEmojis(data.user);
+        
+        const bubble = wrap.querySelector('.bubble');
+        bubble.innerHTML = parseEmojis(data.text);
+        
         document.getElementById('chat-window').appendChild(wrap);
         document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
     });
 
+    // Parse emojis in existing settings
+    document.addEventListener('DOMContentLoaded', () => {
+        // Parse any initial emojis
+        twemoji.parse(document.body, {
+            folder: 'svg',
+            ext: '.svg',
+            className: 'emoji'
+        });
+    });
+
 </script>
 </body>
-    </html>
+</html>
