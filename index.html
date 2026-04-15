@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <title>AeroChat</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --aero-blue: linear-gradient(to bottom, #7abcff 0%, #4096ee 50%, #11599e 51%, #3982c6 100%);
+            --aero-white: linear-gradient(to bottom, #ffffff 0%, #f1f1f1 50%, #e1e1e1 51%, #f6f6f6 100%);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Wallpaper Logic */
+        #bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            transition: background-image 1.5s ease-in-out;
+            z-index: -2;
+        }
+
+        /* Sidebar Users */
+        #sidebar {
+            position: fixed; left: 0; top: 50px; width: 200px; height: calc(100% - 150px);
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 10px; overflow-y: auto;
+        }
+
+        /* Chat Area */
+        #chat-window {
+            margin-left: 220px; padding: 20px;
+            height: calc(100% - 140px); overflow-y: auto;
+            display: flex; flex-direction: column; gap: 20px;
+        }
+
+        /* Message Layout */
+        .msg-wrapper { display: flex; flex-direction: column; max-width: 60%; position: relative; }
+        .msg-wrapper.left { align-self: flex-start; }
+        .msg-wrapper.right { align-self: flex-end; align-items: flex-end; }
+
+        .username-label { font-size: 12px; color: white; text-shadow: 1px 1px 2px black; margin-bottom: 4px; font-weight: bold; }
+
+        .bubble-row { display: flex; align-items: flex-start; }
+        .right .bubble-row { flex-direction: row-reverse; }
+
+        .pfp-area { position: relative; width: 50px; height: 50px; flex-shrink: 0; }
+        .pfp-img { width: 40px; height: 40px; margin: 5px; border-radius: 4px; object-fit: cover; }
+        .pfp-frame { position: absolute; top: 0; left: 0; width: 50px; height: 50px; pointer-events: none; }
+
+        .bubble {
+            margin: 0 10px; padding: 10px 15px; border-radius: 15px;
+            border: 1px solid rgba(0,0,0,0.2); box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            position: relative; font-size: 14px;
+        }
+        .left .bubble { background: var(--aero-white); color: #333; }
+        .right .bubble { background: var(--aero-blue); color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.5); }
+
+        /* Settings Button */
+        #settings-btn {
+            position: fixed; top: 10px; left: 10px;
+            padding: 5px 15px; background: rgba(255,255,255,0.4);
+            border: 1px solid white; border-radius: 5px; cursor: pointer;
+        }
+
+        /* Windows 7 Window */
+        #settings-window {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 400px; background: rgba(200, 220, 240, 0.9);
+            border: 1px solid #777; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+            display: none; z-index: 100; padding: 5px;
+        }
+        .win7-title { display: flex; justify-content: space-between; padding: 5px; font-size: 13px; font-weight: bold; }
+        .close-btn { background: red; color: white; border: 1px solid darkred; padding: 0 8px; cursor: pointer; }
+        .win7-content { background: white; padding: 15px; border-radius: 3px; display: grid; grid-template-columns: 100px 1fr; gap: 10px; }
+
+        .pfp-grid { grid-column: span 2; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; }
+        .pfp-choice { width: 40px; height: 40px; cursor: pointer; border: 2px solid transparent; }
+        .pfp-choice:hover { border-color: #0078d7; }
+
+        /* Bottom Input Bar */
+        .dock {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 80%; height: 60px; background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 15px; display: flex; align-items: center; padding: 0 20px; gap: 10px;
+        }
+        #messageInput { flex: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc; }
+        #sendBtn { padding: 8px 20px; border-radius: 5px; border: 1px solid #333; cursor: pointer; background: #eee; }
+    </style>
+</head>
+<body>
+
+<div id="bg"></div>
+
+<button id="settings-btn">Settings</button>
+
+<div id="sidebar">
+    <div style="color:white; font-weight:bold; margin-bottom:10px;">Users</div>
+    <div id="user-list"></div>
+</div>
+
+<div id="chat-window"></div>
+
+<div class="dock">
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <button id="sendBtn">Send</button>
+</div>
+
+<div id="settings-window">
+    <div class="win7-title">
+        <span>Settings</span>
+        <button class="close-btn" onclick="toggleSettings()">X</button>
+    </div>
+    <div class="win7-content">
+        <div class="pfp-area">
+            <img id="my-pfp" src="pfps/defaults/pfpdefault1.png" class="pfp-img">
+            <img src="pfps/pfpframe.png" class="pfp-frame">
+        </div>
+        <div>
+            <label>Username:</label><br>
+            <input type="text" id="username-input" value="GuestUser">
+        </div>
+        <div class="pfp-grid" id="pfp-options"></div>
+    </div>
+</div>
+
+<script>
+    // --- 1. CONFIG & SETUP ---
+    const firebaseConfig = {
+  apiKey: "AIzaSyCXhWdKsuOWqI9mejUx3khzrvibVWJKBz8",
+  authDomain: "aerochat-c16d6.firebaseapp.com",
+  databaseURL: "https://aerochat-c16d6-default-rtdb.firebaseio.com",
+  projectId: "aerochat-c16d6",
+  storageBucket: "aerochat-c16d6.firebasestorage.app",
+  messagingSenderId: "417272842430",
+  appId: "1:417272842430:web:e6985a117a7c27d228f6ef"
+};
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let myUsername = localStorage.getItem('username') || "Guest" + Math.floor(Math.random()*1000);
+    let myPfp = localStorage.getItem('pfp') || "pfps/defaults/pfpdefault1.png";
+    document.getElementById('username-input').value = myUsername;
+
+    // --- 2. WALLPAPER ROTATION ---
+    const walls = ['wallpapers/wallpaper1.png', 'wallpapers/wallpaper2.png', 'wallpapers/wallpaper3.png'];
+    let wIdx = 0;
+    function rotateWall() {
+        document.getElementById('bg').style.backgroundImage = `url('${walls[wIdx]}')`;
+        wIdx = (wIdx + 1) % walls.length;
+    }
+    rotateWall();
+    setInterval(rotateWall, 180000);
+
+    // --- 3. SETTINGS LOGIC ---
+    function toggleSettings() {
+        const win = document.getElementById('settings-window');
+        win.style.display = win.style.display === 'block' ? 'none' : 'block';
+    }
+    document.getElementById('settings-btn').onclick = toggleSettings;
+
+    // Build PFP Grid
+    const grid = document.getElementById('pfp-options');
+    for(let i=1; i<=9; i++) {
+        let img = document.createElement('img');
+        let path = `pfps/defaults/pfpdefault${i}.png`;
+        img.src = path;
+        img.className = 'pfp-choice';
+        img.onclick = () => {
+            myPfp = path;
+            document.getElementById('my-pfp').src = path;
+            localStorage.setItem('pfp', path);
+        };
+        grid.appendChild(img);
+    }
+
+    document.getElementById('username-input').onchange = (e) => {
+        myUsername = e.target.value;
+        localStorage.setItem('username', myUsername);
+    };
+
+    // --- 4. CHAT LOGIC ---
+    function send() {
+        const val = document.getElementById('messageInput').value;
+        if(!val) return;
+        db.ref('messages').push({
+            user: myUsername,
+            text: val,
+            pfp: myPfp,
+            timestamp: Date.now()
+        });
+        document.getElementById('messageInput').value = "";
+    }
+
+    document.getElementById('sendBtn').onclick = send;
+    document.getElementById('messageInput').onkeypress = (e) => { if(e.key === 'Enter') send(); };
+
+    // Listen for Messages
+    db.ref('messages').limitToLast(20).on('child_added', (snap) => {
+        const data = snap.val();
+        const isMe = data.user === myUsername;
+        
+        const wrap = document.createElement('div');
+        wrap.className = `msg-wrapper ${isMe ? 'right' : 'left'}`;
+        
+        wrap.innerHTML = `
+            <span class="username-label">${data.user}</span>
+            <div class="bubble-row">
+                <div class="pfp-area">
+                    <img src="${data.pfp}" class="pfp-img">
+                    <img src="pfps/pfpframe.png" class="pfp-frame">
+                </div>
+                <div class="bubble">${data.text}</div>
+            </div>
+        `;
+        document.getElementById('chat-window').appendChild(wrap);
+        document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
+    });
+
+</script>
+</body>
+</html>
