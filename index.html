@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
+    
+    <!-- Open Graph tags -->
+    <meta property="og:title" content="AeroChat">
+    <meta property="og:description" content="frutiger aero chat, free!">
+    <meta property="og:type" content="website">
+    
     <title>AeroChat</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -21,7 +27,6 @@
             overflow: hidden;
         }
 
-        /* Wallpaper Logic */
         #bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-size: cover; background-position: center;
@@ -29,7 +34,6 @@
             z-index: -2;
         }
 
-        /* Sidebar Users */
         #sidebar {
             position: fixed; left: 0; top: 50px; width: 200px; height: calc(100% - 150px);
             background: rgba(255, 255, 255, 0.2);
@@ -38,19 +42,27 @@
             padding: 10px; overflow-y: auto;
         }
 
-        /* Chat Area */
         #chat-window {
             margin-left: 220px; padding: 20px;
             height: calc(100% - 140px); overflow-y: auto;
             display: flex; flex-direction: column; gap: 20px;
         }
 
-        /* Message Layout */
         .msg-wrapper { display: flex; flex-direction: column; max-width: 60%; position: relative; }
         .msg-wrapper.left { align-self: flex-start; }
         .msg-wrapper.right { align-self: flex-end; align-items: flex-end; }
 
-        .username-label { font-size: 12px; color: white; text-shadow: 1px 1px 2px black; margin-bottom: 4px; font-weight: bold; }
+        .username-label { 
+            font-size: 12px; color: white; text-shadow: 1px 1px 2px black; 
+            margin-bottom: 4px; font-weight: bold;
+            display: flex; align-items: center; gap: 8px;
+        }
+        
+        .timestamp-label {
+            font-size: 10px; color: rgba(255,255,255,0.8); 
+            text-shadow: 1px 1px 2px black;
+            font-weight: normal;
+        }
 
         .bubble-row { display: flex; align-items: flex-start; }
         .right .bubble-row { flex-direction: row-reverse; }
@@ -67,14 +79,18 @@
         .left .bubble { background: var(--aero-white); color: #333; }
         .right .bubble { background: var(--aero-blue); color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.5); }
 
-        /* Settings Button */
-        #settings-btn {
+        /* Top buttons container */
+        .top-buttons {
             position: fixed; top: 10px; left: 10px;
-            padding: 5px 15px; background: rgba(255,255,255,0.4);
-            border: 1px solid white; border-radius: 5px; cursor: pointer;
+            display: flex; gap: 10px;
         }
 
-        /* Windows 7 Window */
+        #settings-btn, #rules-btn {
+            padding: 5px 15px; background: rgba(255,255,255,0.4);
+            border: 1px solid white; border-radius: 5px; cursor: pointer;
+            color: #333; font-weight: bold;
+        }
+
         #settings-window {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 400px; background: rgba(200, 220, 240, 0.9);
@@ -89,7 +105,6 @@
         .pfp-choice { width: 40px; height: 40px; cursor: pointer; border: 2px solid transparent; }
         .pfp-choice:hover { border-color: #0078d7; }
 
-        /* Bottom Input Bar */
         .dock {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
             width: 80%; height: 60px; background: rgba(255, 255, 255, 0.4);
@@ -98,13 +113,21 @@
         }
         #messageInput { flex: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc; }
         #sendBtn { padding: 8px 20px; border-radius: 5px; border: 1px solid #333; cursor: pointer; background: #eee; }
+
+        .user-item {
+            color: white; padding: 5px; margin: 2px 0;
+            text-shadow: 1px 1px 2px black; border-radius: 3px;
+        }
     </style>
 </head>
 <body>
 
 <div id="bg"></div>
 
-<button id="settings-btn">Settings</button>
+<div class="top-buttons">
+    <button id="settings-btn">Settings</button>
+    <button id="rules-btn">Rules</button>
+</div>
 
 <div id="sidebar">
     <div style="color:white; font-weight:bold; margin-bottom:10px;">Users</div>
@@ -139,20 +162,58 @@
 <script>
     // --- 1. CONFIG & SETUP ---
     const firebaseConfig = {
-  apiKey: "AIzaSyCXhWdKsuOWqI9mejUx3khzrvibVWJKBz8",
-  authDomain: "aerochat-c16d6.firebaseapp.com",
-  databaseURL: "https://aerochat-c16d6-default-rtdb.firebaseio.com",
-  projectId: "aerochat-c16d6",
-  storageBucket: "aerochat-c16d6.firebasestorage.app",
-  messagingSenderId: "417272842430",
-  appId: "1:417272842430:web:e6985a117a7c27d228f6ef"
-};
+        apiKey: "AIzaSyCXhWdKsuOWqI9mejUx3khzrvibVWJKBz8",
+        authDomain: "aerochat-c16d6.firebaseapp.com",
+        databaseURL: "https://aerochat-c16d6-default-rtdb.firebaseio.com",
+        projectId: "aerochat-c16d6",
+        storageBucket: "aerochat-c16d6.firebasestorage.app",
+        messagingSenderId: "417272842430",
+        appId: "1:417272842430:web:e6985a117a7c27d228f6ef"
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     let myUsername = localStorage.getItem('username') || "Guest" + Math.floor(Math.random()*1000);
     let myPfp = localStorage.getItem('pfp') || "pfps/defaults/pfpdefault1.png";
     document.getElementById('username-input').value = myUsername;
+
+    // Track online users
+    const usersRef = db.ref('users');
+    const userList = document.getElementById('user-list');
+    
+    // Register current user
+    function registerUser() {
+        const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
+        userRef.set({
+            username: myUsername,
+            pfp: myPfp,
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+        });
+        userRef.onDisconnect().remove();
+    }
+    registerUser();
+
+    // Listen for users
+    usersRef.on('value', (snapshot) => {
+        userList.innerHTML = '';
+        const users = snapshot.val();
+        if (users) {
+            Object.values(users).forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'user-item';
+                userDiv.textContent = user.username;
+                userList.appendChild(userDiv);
+            });
+        }
+    });
+
+    // Update user presence periodically
+    setInterval(() => {
+        const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
+        userRef.update({
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+        });
+    }, 60000);
 
     // --- 2. WALLPAPER ROTATION ---
     const walls = ['wallpapers/wallpaper1.png', 'wallpapers/wallpaper2.png', 'wallpapers/wallpaper3.png'];
@@ -171,9 +232,18 @@
     }
     document.getElementById('settings-btn').onclick = toggleSettings;
 
-    // Build PFP Grid
+    // --- 4. RULES BUTTON ---
+    document.getElementById('rules-btn').onclick = () => {
+        alert(`RULES:
+no nsfw
+or corn things 
+do not hack. this place is not securised.
+MORE NEW THINGS COMING SOON!!`);
+    };
+
+    // Build PFP Grid - includes pfpdefault10
     const grid = document.getElementById('pfp-options');
-    for(let i=1; i<=9; i++) {
+    for(let i=1; i<=10; i++) {
         let img = document.createElement('img');
         let path = `pfps/defaults/pfpdefault${i}.png`;
         img.src = path;
@@ -182,16 +252,29 @@
             myPfp = path;
             document.getElementById('my-pfp').src = path;
             localStorage.setItem('pfp', path);
+            // Update user pfp in database
+            const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
+            userRef.update({ pfp: path });
         };
         grid.appendChild(img);
     }
 
     document.getElementById('username-input').onchange = (e) => {
+        const oldUsername = myUsername;
         myUsername = e.target.value;
         localStorage.setItem('username', myUsername);
+        
+        // Remove old user entry and create new one
+        usersRef.child(oldUsername.replace(/[.#$/[\]]/g, '_')).remove();
+        registerUser();
     };
 
-    // --- 4. CHAT LOGIC ---
+    // --- 5. CHAT LOGIC ---
+    function formatTime(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
     function send() {
         const val = document.getElementById('messageInput').value;
         if(!val) return;
@@ -215,8 +298,13 @@
         const wrap = document.createElement('div');
         wrap.className = `msg-wrapper ${isMe ? 'right' : 'left'}`;
         
+        const timeStr = formatTime(data.timestamp);
+        
         wrap.innerHTML = `
-            <span class="username-label">${data.user}</span>
+            <span class="username-label">
+                ${data.user}
+                <span class="timestamp-label">${timeStr}</span>
+            </span>
             <div class="bubble-row">
                 <div class="pfp-area">
                     <img src="${data.pfp}" class="pfp-img">
@@ -231,4 +319,4 @@
 
 </script>
 </body>
-</html>
+    </html>
