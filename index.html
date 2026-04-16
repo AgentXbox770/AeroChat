@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     
-    <!-- Open Graph tags -->
     <meta property="og:title" content="AeroChat">
     <meta property="og:description" content="frutiger aero chat, free!">
     <meta property="og:type" content="website">
     
     <title>AeroChat</title>
     
+    <script src="config.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://twemoji.maxcdn.com/v/14.0.2/twemoji.min.js"></script>
@@ -80,7 +80,6 @@
         .left .bubble { background: var(--aero-white); color: #333; }
         .right .bubble { background: var(--aero-blue); color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.5); }
 
-        /* Rainbow animation for agentxbox! */
         @keyframes rainbow {
             0% { background: linear-gradient(to bottom, #ff0000 0%, #cc0000 100%); }
             17% { background: linear-gradient(to bottom, #ffff00 0%, #cccc00 100%); }
@@ -97,7 +96,6 @@
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
 
-        /* Top buttons container */
         .top-buttons {
             position: fixed; top: 10px; left: 10px;
             display: flex; gap: 10px;
@@ -154,7 +152,13 @@
             flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         
-        /* Twemoji styling */
+        .bot-tag {
+            color: #4488ff;
+            font-size: 10px;
+            margin-left: 4px;
+            font-weight: bold;
+        }
+        
         .emoji {
             height: 1.2em; width: 1.2em; margin: 0 0.05em 0 0.1em;
             vertical-align: -0.1em; display: inline-block;
@@ -201,24 +205,34 @@
 </div>
 
 <script>
+    // --- BOT DETECTION ---
+    function isBot() {
+        if (navigator.webdriver) return true;
+        if (navigator.userAgent.includes('Headless')) return true;
+        if (!navigator.languages || navigator.languages.length === 0) return true;
+        if (navigator.plugins.length === 0) return true;
+        if (typeof window.outerWidth === 'undefined') return true;
+        if (typeof window.outerHeight === 'undefined') return true;
+        if (window.self !== window.top) return true;
+        return false;
+    }
+    
+    const userIsBot = isBot();
+
     // --- 1. CONFIG & SETUP ---
-    const firebaseConfig = {
-        apiKey: "AIzaSyCXhWdKsuOWqI9mejUx3khzrvibVWJKBz8",
-        authDomain: "aerochat-c16d6.firebaseapp.com",
-        databaseURL: "https://aerochat-c16d6-default-rtdb.firebaseio.com",
-        projectId: "aerochat-c16d6",
-        storageBucket: "aerochat-c16d6.firebasestorage.app",
-        messagingSenderId: "417272842430",
-        appId: "1:417272842430:web:e6985a117a7c27d228f6ef"
-    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     let myUsername = localStorage.getItem('username') || "Guest" + Math.floor(Math.random()*1000);
     let myPfp = localStorage.getItem('pfp') || "pfps/defaults/pfpdefault1.png";
+    
+    let displayUsername = myUsername;
+    if (userIsBot && !myUsername.includes('[BOT]')) {
+        displayUsername = myUsername + ' [BOT]';
+    }
+    
     document.getElementById('username-input').value = myUsername;
 
-    // Helper function to parse emojis with Twemoji
     function parseEmojis(text) {
         return twemoji.parse(text, {
             folder: 'svg',
@@ -227,23 +241,21 @@
         });
     }
 
-    // Track online users
     const usersRef = db.ref('users');
     const userList = document.getElementById('user-list');
     
-    // Register current user
     function registerUser() {
-        const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
+        const userRef = usersRef.child(displayUsername.replace(/[.#$/[\]]/g, '_'));
         userRef.set({
-            username: myUsername,
+            username: displayUsername,
             pfp: myPfp,
-            lastSeen: firebase.database.ServerValue.TIMESTAMP
+            lastSeen: firebase.database.ServerValue.TIMESTAMP,
+            isBot: userIsBot
         });
         userRef.onDisconnect().remove();
     }
     registerUser();
 
-    // Listen for users
     usersRef.on('value', (snapshot) => {
         userList.innerHTML = '';
         const users = snapshot.val();
@@ -252,26 +264,30 @@
                 const userDiv = document.createElement('div');
                 userDiv.className = 'user-item';
                 
+                let displayName = user.username;
+                let botTag = '';
+                if (user.isBot) {
+                    botTag = '<span class="bot-tag">[BOT]</span>';
+                }
+                
                 userDiv.innerHTML = `
                     <div class="user-pfp-area">
                         <img src="${user.pfp || 'pfps/defaults/pfpdefault1.png'}" class="user-pfp-img">
                         <img src="pfps/pfpframe.png" class="user-pfp-frame">
                     </div>
-                    <span class="user-name">${user.username}</span>
+                    <span class="user-name">${displayName}${botTag}</span>
                 `;
                 
-                // Parse emojis in username
                 const nameSpan = userDiv.querySelector('.user-name');
-                nameSpan.innerHTML = parseEmojis(user.username);
+                nameSpan.innerHTML = parseEmojis(displayName) + botTag;
                 
                 userList.appendChild(userDiv);
             });
         }
     });
 
-    // Update user presence periodically
     setInterval(() => {
-        const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
+        const userRef = usersRef.child(displayUsername.replace(/[.#$/[\]]/g, '_'));
         userRef.update({
             lastSeen: firebase.database.ServerValue.TIMESTAMP
         });
@@ -285,7 +301,7 @@
         wIdx = (wIdx + 1) % walls.length;
     }
     rotateWall();
-    setInterval(rotateWall, 60000); // Changed from 180000 (3 min) to 60000 (1 min)
+    setInterval(rotateWall, 60000);
 
     // --- 3. SETTINGS LOGIC ---
     function toggleSettings() {
@@ -303,7 +319,7 @@ do not hack. this place is not securised.
 MORE NEW THINGS COMING SOON!!`);
     };
 
-    // Build PFP Grid - includes pfpdefault10
+    // Build PFP Grid
     const grid = document.getElementById('pfp-options');
     for(let i=1; i<=10; i++) {
         let img = document.createElement('img');
@@ -314,37 +330,53 @@ MORE NEW THINGS COMING SOON!!`);
             myPfp = path;
             document.getElementById('my-pfp').src = path;
             localStorage.setItem('pfp', path);
-            // Update user pfp in database
-            const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
+            const userRef = usersRef.child(displayUsername.replace(/[.#$/[\]]/g, '_'));
             userRef.update({ pfp: path });
         };
         grid.appendChild(img);
     }
 
     document.getElementById('username-input').onchange = (e) => {
-        const oldUsername = myUsername;
+        const oldUsername = displayUsername;
         myUsername = e.target.value;
+        displayUsername = userIsBot ? myUsername + ' [BOT]' : myUsername;
         localStorage.setItem('username', myUsername);
         
-        // Remove old user entry and create new one
         usersRef.child(oldUsername.replace(/[.#$/[\]]/g, '_')).remove();
         registerUser();
     };
 
-    // --- 5. CHAT LOGIC ---
+    // --- 5. CHAT LOGIC with anti-spam ---
+    let lastMessageTime = 0;
+    const MESSAGE_COOLDOWN = 2000;
+    
     function formatTime(timestamp) {
         const date = new Date(timestamp);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     function send() {
+        const now = Date.now();
+        if (now - lastMessageTime < MESSAGE_COOLDOWN) {
+            alert("Slow down! Wait 2 seconds between messages.");
+            return;
+        }
+        
         const val = document.getElementById('messageInput').value;
         if(!val) return;
+        if(val.length > 500) {
+            alert("Message too long! Max 500 characters.");
+            return;
+        }
+        
+        lastMessageTime = now;
+        
         db.ref('messages').push({
-            user: myUsername,
+            user: displayUsername,
             text: val,
             pfp: myPfp,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            isBot: userIsBot
         });
         document.getElementById('messageInput').value = "";
     }
@@ -355,8 +387,8 @@ MORE NEW THINGS COMING SOON!!`);
     // Listen for Messages
     db.ref('messages').limitToLast(20).on('child_added', (snap) => {
         const data = snap.val();
-        const isMe = data.user === myUsername;
-        const isAgentXbox = data.user === "agentxbox!";
+        const isMe = data.user === displayUsername;
+        const isAgentXbox = data.user === "agentxbox!" || data.user === "agentxbox! [BOT]";
         
         const wrap = document.createElement('div');
         wrap.className = `msg-wrapper ${isMe ? 'right' : 'left'}`;
@@ -377,7 +409,6 @@ MORE NEW THINGS COMING SOON!!`);
             </div>
         `;
         
-        // Parse emojis in username and message
         const usernameSpan = wrap.querySelector('.username-text');
         usernameSpan.innerHTML = parseEmojis(data.user);
         
@@ -388,9 +419,7 @@ MORE NEW THINGS COMING SOON!!`);
         document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
     });
 
-    // Parse emojis in existing settings
     document.addEventListener('DOMContentLoaded', () => {
-        // Parse any initial emojis
         twemoji.parse(document.body, {
             folder: 'svg',
             ext: '.svg',
