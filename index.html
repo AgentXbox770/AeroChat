@@ -46,7 +46,7 @@
             background: rgba(255, 255, 255, 0.7);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.8);
-            border-radius: 20px;
+            border-radius: 0;
             font-size: 14px;
             outline: none;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
@@ -60,7 +60,7 @@
             position: absolute; top: 100%; left: 0; right: 0;
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
-            border-radius: 10px;
+            border-radius: 0;
             margin-top: 5px;
             max-height: 300px;
             overflow-y: auto;
@@ -221,7 +221,7 @@
 <div id="bg"></div>
 
 <div id="search-container">
-    <input type="text" id="search-input" placeholder="🔍 Search messages...">
+    <input type="text" id="search-input" placeholder="Search messages...">
     <div id="search-results"></div>
 </div>
 
@@ -253,8 +253,8 @@
             <img src="pfps/pfpframe.png" class="pfp-frame">
         </div>
         <div>
-            <label>Username (symbols allowed):</label><br>
-            <input type="text" id="username-input" value="GuestUser">
+            <label>Username:</label><br>
+            <input type="text" id="username-input" value="guest376">
         </div>
         <div class="pfp-grid" id="pfp-options"></div>
     </div>
@@ -517,7 +517,6 @@ MORE NEW THINGS COMING SOON!!`);
                     const msgId = item.dataset.id;
                     const msg = allMessages.find(m => m.id === msgId);
                     if (msg) {
-                        // Scroll to message (simplified - just show in chat)
                         const chatWindow = document.getElementById('chat-window');
                         chatWindow.innerHTML = '';
                         allMessages.slice(-50).forEach(m => displayMessage(m));
@@ -532,4 +531,20 @@ MORE NEW THINGS COMING SOON!!`);
         searchResults.style.display = 'block';
     });
     
-   
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        twemoji.parse(document.body, {
+            folder: 'svg',
+            ext: '.svg',
+            className: 'emoji'
+        });
+    });
+
+</script>
+</body>
+</html>
