@@ -152,13 +152,6 @@
             flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         
-        .bot-tag {
-            color: #4488ff;
-            font-size: 10px;
-            margin-left: 4px;
-            font-weight: bold;
-        }
-        
         .emoji {
             height: 1.2em; width: 1.2em; margin: 0 0.05em 0 0.1em;
             vertical-align: -0.1em; display: inline-block;
@@ -205,31 +198,12 @@
 </div>
 
 <script>
-    // --- BOT DETECTION ---
-    function isBot() {
-        if (navigator.webdriver) return true;
-        if (navigator.userAgent.includes('Headless')) return true;
-        if (!navigator.languages || navigator.languages.length === 0) return true;
-        if (navigator.plugins.length === 0) return true;
-        if (typeof window.outerWidth === 'undefined') return true;
-        if (typeof window.outerHeight === 'undefined') return true;
-        if (window.self !== window.top) return true;
-        return false;
-    }
-    
-    const userIsBot = isBot();
-
     // --- 1. CONFIG & SETUP ---
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     let myUsername = localStorage.getItem('username') || "Guest" + Math.floor(Math.random()*1000);
     let myPfp = localStorage.getItem('pfp') || "pfps/defaults/pfpdefault1.png";
-    
-    let displayUsername = myUsername;
-    if (userIsBot && !myUsername.includes('[BOT]')) {
-        displayUsername = myUsername + ' [BOT]';
-    }
     
     document.getElementById('username-input').value = myUsername;
 
@@ -245,12 +219,11 @@
     const userList = document.getElementById('user-list');
     
     function registerUser() {
-        const userRef = usersRef.child(displayUsername.replace(/[.#$/[\]]/g, '_'));
+        const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
         userRef.set({
-            username: displayUsername,
+            username: myUsername,
             pfp: myPfp,
-            lastSeen: firebase.database.ServerValue.TIMESTAMP,
-            isBot: userIsBot
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
         });
         userRef.onDisconnect().remove();
     }
@@ -264,22 +237,16 @@
                 const userDiv = document.createElement('div');
                 userDiv.className = 'user-item';
                 
-                let displayName = user.username;
-                let botTag = '';
-                if (user.isBot) {
-                    botTag = '<span class="bot-tag">[BOT]</span>';
-                }
-                
                 userDiv.innerHTML = `
                     <div class="user-pfp-area">
                         <img src="${user.pfp || 'pfps/defaults/pfpdefault1.png'}" class="user-pfp-img">
                         <img src="pfps/pfpframe.png" class="user-pfp-frame">
                     </div>
-                    <span class="user-name">${displayName}${botTag}</span>
+                    <span class="user-name">${user.username}</span>
                 `;
                 
                 const nameSpan = userDiv.querySelector('.user-name');
-                nameSpan.innerHTML = parseEmojis(displayName) + botTag;
+                nameSpan.innerHTML = parseEmojis(user.username);
                 
                 userList.appendChild(userDiv);
             });
@@ -287,7 +254,7 @@
     });
 
     setInterval(() => {
-        const userRef = usersRef.child(displayUsername.replace(/[.#$/[\]]/g, '_'));
+        const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
         userRef.update({
             lastSeen: firebase.database.ServerValue.TIMESTAMP
         });
@@ -330,16 +297,15 @@ MORE NEW THINGS COMING SOON!!`);
             myPfp = path;
             document.getElementById('my-pfp').src = path;
             localStorage.setItem('pfp', path);
-            const userRef = usersRef.child(displayUsername.replace(/[.#$/[\]]/g, '_'));
+            const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
             userRef.update({ pfp: path });
         };
         grid.appendChild(img);
     }
 
     document.getElementById('username-input').onchange = (e) => {
-        const oldUsername = displayUsername;
+        const oldUsername = myUsername;
         myUsername = e.target.value;
-        displayUsername = userIsBot ? myUsername + ' [BOT]' : myUsername;
         localStorage.setItem('username', myUsername);
         
         usersRef.child(oldUsername.replace(/[.#$/[\]]/g, '_')).remove();
@@ -372,11 +338,10 @@ MORE NEW THINGS COMING SOON!!`);
         lastMessageTime = now;
         
         db.ref('messages').push({
-            user: displayUsername,
+            user: myUsername,
             text: val,
             pfp: myPfp,
-            timestamp: Date.now(),
-            isBot: userIsBot
+            timestamp: Date.now()
         });
         document.getElementById('messageInput').value = "";
     }
@@ -387,8 +352,8 @@ MORE NEW THINGS COMING SOON!!`);
     // Listen for Messages
     db.ref('messages').limitToLast(20).on('child_added', (snap) => {
         const data = snap.val();
-        const isMe = data.user === displayUsername;
-        const isAgentXbox = data.user === "agentxbox!" || data.user === "agentxbox! [BOT]";
+        const isMe = data.user === myUsername;
+        const isAgentXbox = data.user === "agentxbox!";
         
         const wrap = document.createElement('div');
         wrap.className = `msg-wrapper ${isMe ? 'right' : 'left'}`;
