@@ -35,6 +35,53 @@
             z-index: -2;
         }
 
+        /* Search Bar */
+        #search-container {
+            position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+            width: 400px; z-index: 50;
+        }
+        
+        #search-input {
+            width: 100%; padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        #search-input:focus {
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        #search-results {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            margin-top: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        .search-result-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid #ccc;
+            cursor: pointer;
+        }
+        
+        .search-result-item:hover {
+            background: rgba(0, 120, 215, 0.2);
+        }
+        
+        .search-result-time {
+            font-size: 11px; color: #666;
+        }
+
         #sidebar {
             position: fixed; left: 0; top: 50px; width: 220px; height: calc(100% - 150px);
             background: rgba(255, 255, 255, 0.2);
@@ -57,6 +104,7 @@
             font-size: 12px; color: white; text-shadow: 1px 1px 2px black; 
             margin-bottom: 4px; font-weight: bold;
             display: flex; align-items: center; gap: 8px;
+            flex-wrap: wrap;
         }
         
         .timestamp-label {
@@ -76,6 +124,7 @@
             margin: 0 10px; padding: 10px 15px; border-radius: 15px;
             border: 1px solid rgba(0,0,0,0.2); box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             position: relative; font-size: 14px;
+            word-break: break-word;
         }
         .left .bubble { background: var(--aero-white); color: #333; }
         .right .bubble { background: var(--aero-blue); color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.5); }
@@ -150,17 +199,31 @@
         
         .user-name {
             flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            display: flex; align-items: center; gap: 5px;
+        }
+        
+        .badge-img {
+            height: 16px; width: auto; vertical-align: middle;
         }
         
         .emoji {
             height: 1.2em; width: 1.2em; margin: 0 0.05em 0 0.1em;
             vertical-align: -0.1em; display: inline-block;
         }
+        
+        .highlight {
+            background: yellow; color: black;
+        }
     </style>
 </head>
 <body>
 
 <div id="bg"></div>
+
+<div id="search-container">
+    <input type="text" id="search-input" placeholder="🔍 Search messages...">
+    <div id="search-results"></div>
+</div>
 
 <div class="top-buttons">
     <button id="settings-btn">Settings</button>
@@ -190,7 +253,7 @@
             <img src="pfps/pfpframe.png" class="pfp-frame">
         </div>
         <div>
-            <label>Username:</label><br>
+            <label>Username (symbols allowed):</label><br>
             <input type="text" id="username-input" value="GuestUser">
         </div>
         <div class="pfp-grid" id="pfp-options"></div>
@@ -207,6 +270,13 @@
     
     document.getElementById('username-input').value = myUsername;
 
+    // Badge system
+    function getBadge(username) {
+        if (username === "agentxbox!") return '<img src="badges/owner.gif" class="badge-img" title="Owner">';
+        if (username === "BryanSuperAero") return '<img src="badges/admin.png" class="badge-img" title="Admin">';
+        return '<img src="badges/member.png" class="badge-img" title="Member">';
+    }
+
     function parseEmojis(text) {
         return twemoji.parse(text, {
             folder: 'svg',
@@ -214,12 +284,17 @@
             className: 'emoji'
         });
     }
+    
+    function sanitizeForFirebase(str) {
+        return str.replace(/[.#$[\]]/g, '_');
+    }
 
     const usersRef = db.ref('users');
     const userList = document.getElementById('user-list');
     
     function registerUser() {
-        const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
+        const safeKey = sanitizeForFirebase(myUsername);
+        const userRef = usersRef.child(safeKey);
         userRef.set({
             username: myUsername,
             pfp: myPfp,
@@ -227,13 +302,22 @@
         });
         userRef.onDisconnect().remove();
     }
-    registerUser();
+    
+    function cleanupOldUsers() {
+        const safeKey = sanitizeForFirebase(myUsername);
+        usersRef.child(safeKey).remove();
+    }
+    
+    cleanupOldUsers();
+    setTimeout(() => registerUser(), 100);
 
     usersRef.on('value', (snapshot) => {
         userList.innerHTML = '';
         const users = snapshot.val();
         if (users) {
             Object.values(users).forEach(user => {
+                if (!user || !user.username) return;
+                
                 const userDiv = document.createElement('div');
                 userDiv.className = 'user-item';
                 
@@ -242,10 +326,13 @@
                         <img src="${user.pfp || 'pfps/defaults/pfpdefault1.png'}" class="user-pfp-img">
                         <img src="pfps/pfpframe.png" class="user-pfp-frame">
                     </div>
-                    <span class="user-name">${user.username}</span>
+                    <span class="user-name">
+                        <span class="user-name-text">${user.username}</span>
+                        ${getBadge(user.username)}
+                    </span>
                 `;
                 
-                const nameSpan = userDiv.querySelector('.user-name');
+                const nameSpan = userDiv.querySelector('.user-name-text');
                 nameSpan.innerHTML = parseEmojis(user.username);
                 
                 userList.appendChild(userDiv);
@@ -254,11 +341,12 @@
     });
 
     setInterval(() => {
-        const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
+        const safeKey = sanitizeForFirebase(myUsername);
+        const userRef = usersRef.child(safeKey);
         userRef.update({
             lastSeen: firebase.database.ServerValue.TIMESTAMP
         });
-    }, 60000);
+    }, 30000);
 
     // --- 2. WALLPAPER ROTATION (every 1 minute) ---
     const walls = ['wallpapers/wallpaper1.png', 'wallpapers/wallpaper2.png', 'wallpapers/wallpaper3.png'];
@@ -297,7 +385,8 @@ MORE NEW THINGS COMING SOON!!`);
             myPfp = path;
             document.getElementById('my-pfp').src = path;
             localStorage.setItem('pfp', path);
-            const userRef = usersRef.child(myUsername.replace(/[.#$/[\]]/g, '_'));
+            const safeKey = sanitizeForFirebase(myUsername);
+            const userRef = usersRef.child(safeKey);
             userRef.update({ pfp: path });
         };
         grid.appendChild(img);
@@ -308,17 +397,24 @@ MORE NEW THINGS COMING SOON!!`);
         myUsername = e.target.value;
         localStorage.setItem('username', myUsername);
         
-        usersRef.child(oldUsername.replace(/[.#$/[\]]/g, '_')).remove();
+        const oldKey = sanitizeForFirebase(oldUsername);
+        usersRef.child(oldKey).remove();
         registerUser();
     };
 
     // --- 5. CHAT LOGIC with anti-spam ---
     let lastMessageTime = 0;
     const MESSAGE_COOLDOWN = 2000;
+    let allMessages = [];
     
     function formatTime(timestamp) {
         const date = new Date(timestamp);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    function formatFullTime(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleString();
     }
 
     function send() {
@@ -330,10 +426,6 @@ MORE NEW THINGS COMING SOON!!`);
         
         const val = document.getElementById('messageInput').value;
         if(!val) return;
-        if(val.length > 500) {
-            alert("Message too long! Max 500 characters.");
-            return;
-        }
         
         lastMessageTime = now;
         
@@ -350,8 +442,17 @@ MORE NEW THINGS COMING SOON!!`);
     document.getElementById('messageInput').onkeypress = (e) => { if(e.key === 'Enter') send(); };
 
     // Listen for Messages
-    db.ref('messages').limitToLast(20).on('child_added', (snap) => {
+    db.ref('messages').limitToLast(100).on('child_added', (snap) => {
         const data = snap.val();
+        if (!data || !data.user) return;
+        
+        allMessages.push({ id: snap.key, ...data });
+        if (allMessages.length > 500) allMessages.shift();
+        
+        displayMessage(data);
+    });
+    
+    function displayMessage(data) {
         const isMe = data.user === myUsername;
         const isAgentXbox = data.user === "agentxbox!";
         
@@ -363,11 +464,12 @@ MORE NEW THINGS COMING SOON!!`);
         wrap.innerHTML = `
             <span class="username-label">
                 <span class="username-text">${data.user}</span>
+                ${getBadge(data.user)}
                 <span class="timestamp-label">${timeStr}</span>
             </span>
             <div class="bubble-row">
                 <div class="pfp-area">
-                    <img src="${data.pfp}" class="pfp-img">
+                    <img src="${data.pfp || 'pfps/defaults/pfpdefault1.png'}" class="pfp-img">
                     <img src="pfps/pfpframe.png" class="pfp-frame">
                 </div>
                 <div class="bubble ${isAgentXbox ? 'rainbow-bubble' : ''}">${data.text}</div>
@@ -382,16 +484,52 @@ MORE NEW THINGS COMING SOON!!`);
         
         document.getElementById('chat-window').appendChild(wrap);
         document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
-    });
+    }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        twemoji.parse(document.body, {
-            folder: 'svg',
-            ext: '.svg',
-            className: 'emoji'
-        });
+    // --- 6. SEARCH FUNCTIONALITY ---
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase();
+        if (query.length < 2) {
+            searchResults.style.display = 'none';
+            return;
+        }
+        
+        const results = allMessages.filter(msg => 
+            msg.user.toLowerCase().includes(query) || 
+            msg.text.toLowerCase().includes(query)
+        ).slice(-20).reverse();
+        
+        if (results.length === 0) {
+            searchResults.innerHTML = '<div style="padding:10px;color:#666;">No results found</div>';
+        } else {
+            searchResults.innerHTML = results.map(msg => `
+                <div class="search-result-item" data-id="${msg.id}">
+                    <div><strong>${msg.user}</strong> <span class="search-result-time">${formatFullTime(msg.timestamp)}</span></div>
+                    <div style="font-size:13px;">${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}</div>
+                </div>
+            `).join('');
+            
+            document.querySelectorAll('.search-result-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const msgId = item.dataset.id;
+                    const msg = allMessages.find(m => m.id === msgId);
+                    if (msg) {
+                        // Scroll to message (simplified - just show in chat)
+                        const chatWindow = document.getElementById('chat-window');
+                        chatWindow.innerHTML = '';
+                        allMessages.slice(-50).forEach(m => displayMessage(m));
+                        alert(`Message from ${msg.user} at ${formatFullTime(msg.timestamp)}:\n\n${msg.text}`);
+                    }
+                    searchResults.style.display = 'none';
+                    searchInput.value = '';
+                });
+            });
+        }
+        
+        searchResults.style.display = 'block';
     });
-
-</script>
-</body>
-</html>
+    
+   
