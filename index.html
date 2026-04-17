@@ -17,14 +17,22 @@
     <script src="https://twemoji.maxcdn.com/v/14.0.2/twemoji.min.js"></script>
 
     <style>
+        @font-face {
+            font-family: 'Aero';
+            src: url('AERO_03.otf') format('opentype');
+        }
+
         :root {
             --aero-blue: linear-gradient(to bottom, #7abcff 0%, #4096ee 50%, #11599e 51%, #3982c6 100%);
             --aero-white: linear-gradient(to bottom, #ffffff 0%, #f1f1f1 50%, #e1e1e1 51%, #f6f6f6 100%);
         }
 
+        * {
+            font-family: 'Aero', 'Segoe UI', Tahoma, sans-serif;
+        }
+
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            font-family: "Segoe UI", Tahoma, sans-serif;
             overflow: hidden;
         }
 
@@ -148,6 +156,22 @@
             border: 1px solid rgba(0,0,0,0.2);
         }
 
+        .file-attachment {
+            margin-top: 8px;
+            max-width: 100%;
+        }
+        
+        .file-attachment img, .file-attachment video {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+        
+        .file-attachment audio {
+            max-width: 100%;
+        }
+
         @keyframes rainbow {
             0% { background: linear-gradient(to bottom, #ff0000 0%, #cc0000 100%); }
             17% { background: linear-gradient(to bottom, #ffff00 0%, #cccc00 100%); }
@@ -195,6 +219,29 @@
             backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.6);
             border-radius: 15px; display: flex; align-items: center; padding: 0 20px; gap: 10px;
         }
+        
+        #file-input {
+            display: none;
+        }
+        
+        .plus-btn {
+            width: 40px; height: 40px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid #999;
+            border-radius: 0;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        
+        .plus-btn:hover {
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
         #messageInput { flex: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc; }
         #sendBtn { padding: 8px 20px; border-radius: 5px; border: 1px solid #333; cursor: pointer; background: #eee; }
 
@@ -229,10 +276,6 @@
             height: 1.5em; width: auto; margin: 0 2px;
             vertical-align: middle; display: inline-block;
         }
-        
-        .highlight {
-            background: yellow; color: black;
-        }
     </style>
 </head>
 <body>
@@ -257,6 +300,8 @@
 <div id="chat-window"></div>
 
 <div class="dock">
+    <input type="file" id="file-input" accept=".mp3,.mp4,.png,.jpg,.jpeg,.webp">
+    <button class="plus-btn" onclick="document.getElementById('file-input').click()">+</button>
     <input type="text" id="messageInput" placeholder="Type a message...">
     <button id="sendBtn">Send</button>
 </div>
@@ -327,6 +372,9 @@
     function parseLinks(text) {
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         return text.replace(urlRegex, (url) => {
+            if (url.includes('youtube.com/watch') || url.includes('youtu.be/') || url.includes('youtube.com/shorts')) {
+                return '';
+            }
             return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
         });
     }
@@ -346,7 +394,6 @@
         let processed = parseEmoticons(text);
         processed = parseLinks(processed);
         
-        // Check for YouTube links and add embed
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         const urls = text.match(urlRegex) || [];
         let youtubeEmbed = '';
@@ -362,7 +409,6 @@
                         </iframe>
                     </div>
                 `;
-                processed = processed.replace(url, '');
                 break;
             }
         }
@@ -370,7 +416,6 @@
         return { processed, youtubeEmbed };
     }
 
-    // Badge system
     function getBadge(username) {
         if (username === "agentxbox!") return '<img src="badges/owner.gif" class="badge-img" title="Owner">';
         if (username === "BryanSuperAero") return '<img src="badges/admin.png" class="badge-img" title="Admin">';
@@ -448,7 +493,7 @@
         });
     }, 30000);
 
-    // --- 2. WALLPAPER ROTATION (every 1 minute) ---
+    // --- 2. WALLPAPER ROTATION ---
     const walls = [
         'wallpapers/wallpaper1.png',
         'wallpapers/wallpaper2.png',
@@ -474,11 +519,7 @@
 
     // --- 4. RULES BUTTON ---
     document.getElementById('rules-btn').onclick = () => {
-        alert(`RULES:
-no nsfw
-or corn things 
-do not hack. this place is not securised.
-MORE NEW THINGS COMING SOON!!`);
+        alert(`RULES:\nno nsfw\nor corn things\ndo not hack. this place is not securised.\nMORE NEW THINGS COMING SOON!!`);
     };
 
     // Build PFP Grid
@@ -509,7 +550,27 @@ MORE NEW THINGS COMING SOON!!`);
         registerUser();
     };
 
-    // --- 5. CHAT LOGIC with anti-spam ---
+    // --- 5. FILE UPLOAD ---
+    const fileInput = document.getElementById('file-input');
+    let currentFile = null;
+    
+    fileInput.addEventListener('change', (e) => {
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentFile = {
+                    name: file.name,
+                    type: file.type,
+                    data: event.target.result
+                };
+                document.getElementById('messageInput').placeholder = `File selected: ${file.name}`;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // --- 6. CHAT LOGIC ---
     let lastMessageTime = 0;
     const MESSAGE_COOLDOWN = 2000;
     let allMessages = [];
@@ -532,23 +593,47 @@ MORE NEW THINGS COMING SOON!!`);
         }
         
         const val = document.getElementById('messageInput').value;
-        if(!val) return;
+        if(!val && !currentFile) return;
         
         lastMessageTime = now;
         
-        db.ref('messages').push({
+        const messageData = {
             user: myUsername,
-            text: val,
+            text: val || '',
             pfp: myPfp,
             timestamp: Date.now()
-        });
+        };
+        
+        if (currentFile) {
+            messageData.file = currentFile;
+        }
+        
+        db.ref('messages').push(messageData);
         document.getElementById('messageInput').value = "";
+        document.getElementById('messageInput').placeholder = "Type a message...";
+        currentFile = null;
+        fileInput.value = "";
     }
 
     document.getElementById('sendBtn').onclick = send;
     document.getElementById('messageInput').onkeypress = (e) => { if(e.key === 'Enter') send(); };
 
-    // Listen for Messages
+    function renderFileAttachment(file) {
+        if (!file) return '';
+        
+        const type = file.type;
+        const data = file.data;
+        
+        if (type.startsWith('image/')) {
+            return `<div class="file-attachment"><img src="${data}" alt="${file.name}"></div>`;
+        } else if (type.startsWith('video/')) {
+            return `<div class="file-attachment"><video controls src="${data}"></video></div>`;
+        } else if (type.startsWith('audio/')) {
+            return `<div class="file-attachment"><audio controls src="${data}"></audio></div>`;
+        }
+        return '';
+    }
+
     db.ref('messages').limitToLast(100).on('child_added', (snap) => {
         const data = snap.val();
         if (!data || !data.user) return;
@@ -556,10 +641,6 @@ MORE NEW THINGS COMING SOON!!`);
         allMessages.push({ id: snap.key, ...data });
         if (allMessages.length > 500) allMessages.shift();
         
-        displayMessage(data);
-    });
-    
-    function displayMessage(data) {
         const isMe = data.user === myUsername;
         const isAgentXbox = data.user === "agentxbox!";
         
@@ -567,7 +648,9 @@ MORE NEW THINGS COMING SOON!!`);
         wrap.className = `msg-wrapper ${isMe ? 'right' : 'left'}`;
         
         const timeStr = formatTime(data.timestamp);
-        const { processed, youtubeEmbed } = processMessage(data.text);
+        const { processed, youtubeEmbed } = processMessage(data.text || '');
+        
+        const fileHtml = data.file ? renderFileAttachment(data.file) : '';
         
         wrap.innerHTML = `
             <span class="username-label">
@@ -583,6 +666,7 @@ MORE NEW THINGS COMING SOON!!`);
                 <div class="bubble ${isAgentXbox ? 'rainbow-bubble' : ''}">
                     ${processed}
                     ${youtubeEmbed}
+                    ${fileHtml}
                 </div>
             </div>
         `;
@@ -591,12 +675,13 @@ MORE NEW THINGS COMING SOON!!`);
         usernameSpan.innerHTML = parseEmojis(data.user);
         
         const bubble = wrap.querySelector('.bubble');
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = processed + youtubeEmbed;
-        bubble.innerHTML = '';
-        bubble.appendChild(tempDiv);
+        if (data.text) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = processed + youtubeEmbed + fileHtml;
+            bubble.innerHTML = '';
+            bubble.appendChild(tempDiv);
+        }
         
-        // Parse emojis in the processed text
         twemoji.parse(bubble, {
             folder: 'svg',
             ext: '.svg',
@@ -605,9 +690,9 @@ MORE NEW THINGS COMING SOON!!`);
         
         document.getElementById('chat-window').appendChild(wrap);
         document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
-    }
+    });
 
-    // --- 6. SEARCH FUNCTIONALITY ---
+    // --- 7. SEARCH FUNCTIONALITY ---
     const searchInput = document.getElementById('search-input');
     const searchResults = document.getElementById('search-results');
     
@@ -620,7 +705,7 @@ MORE NEW THINGS COMING SOON!!`);
         
         const results = allMessages.filter(msg => 
             msg.user.toLowerCase().includes(query) || 
-            msg.text.toLowerCase().includes(query)
+            (msg.text || '').toLowerCase().includes(query)
         ).slice(-20).reverse();
         
         if (results.length === 0) {
@@ -629,7 +714,7 @@ MORE NEW THINGS COMING SOON!!`);
             searchResults.innerHTML = results.map(msg => `
                 <div class="search-result-item" data-id="${msg.id}">
                     <div><strong>${msg.user}</strong> <span class="search-result-time">${formatFullTime(msg.timestamp)}</span></div>
-                    <div style="font-size:13px;">${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}</div>
+                    <div style="font-size:13px;">${(msg.text || '[File]').substring(0, 50)}${(msg.text || '').length > 50 ? '...' : ''}</div>
                 </div>
             `).join('');
             
@@ -638,10 +723,7 @@ MORE NEW THINGS COMING SOON!!`);
                     const msgId = item.dataset.id;
                     const msg = allMessages.find(m => m.id === msgId);
                     if (msg) {
-                        const chatWindow = document.getElementById('chat-window');
-                        chatWindow.innerHTML = '';
-                        allMessages.slice(-50).forEach(m => displayMessage(m));
-                        alert(`Message from ${msg.user} at ${formatFullTime(msg.timestamp)}:\n\n${msg.text}`);
+                        alert(`Message from ${msg.user} at ${formatFullTime(msg.timestamp)}:\n\n${msg.text || '[File attachment]'}`);
                     }
                     searchResults.style.display = 'none';
                     searchInput.value = '';
@@ -666,147 +748,6 @@ MORE NEW THINGS COMING SOON!!`);
         });
     });
 
-(function() {
-    const emoticons = {
-        ':amogus:': 'amogus.png',
-        ':hehe:': 'hehe.png',
-        ':pepeds:': 'pepeds.gif',
-        ':trollsmile:': 'trollsmile.gif',
-        ':sussy:': 'sussy.png',
-        ':banned:': 'banned.gif',
-        ':sus:': 'sus.png',
-        ':hug:': 'dogehug.png',
-        ':isawthat:': 'jesussawthat.png',
-        ':heheboi:': 'heheboi.png',
-        ':didiask:': 'didiask.png',
-        ':holy:': 'pepeholy.png',
-        ':suycf:': 'suycf.png',
-        ':heart:': 'heart.png',
-        ':200iq:': '200iq.gif',
-        ':pog:': 'pogcat.png',
-        ':armed:': 'armed.gif',
-        ':noob:': 'pepenoob.png',
-        ':rage:': 'rage.gif',
-        ':cringe:': 'pepecringe.png',
-        ':catscream:': 'catscream.gif',
-        ':awesome:': 'awesome.png'
-    };
-    
-    const messageInput = document.getElementById('messageInput');
-    const dock = document.querySelector('.dock');
-    
-    // Create suggestion box
-    const suggestionBox = document.createElement('div');
-    suggestionBox.id = 'emoticon-suggestions';
-    suggestionBox.style.cssText = `
-        position: absolute; bottom: 70px; left: 20px;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        max-height: 200px;
-        overflow-y: auto;
-        display: none;
-        z-index: 1000;
-        min-width: 200px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    `;
-    dock.style.position = 'relative';
-    dock.appendChild(suggestionBox);
-    
-    messageInput.addEventListener('input', function() {
-        const text = this.value;
-        const colonMatch = text.match(/:\w*$/);
-        
-        if (colonMatch) {
-            const searchTerm = colonMatch[0].toLowerCase();
-            const suggestions = Object.keys(emoticons).filter(code => 
-                code.toLowerCase().startsWith(searchTerm)
-            );
-            
-            if (suggestions.length > 0) {
-                suggestionBox.innerHTML = suggestions.map(code => `
-                    <div class="emoticon-suggestion" data-code="${code}" style="
-                        padding: 8px 12px;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        border-bottom: 1px solid #eee;
-                        transition: background 0.2s;
-                    " onmouseover="this.style.background='#e0e0e0'" 
-                       onmouseout="this.style.background='transparent'">
-                        <img src="emoticons/${emoticons[code]}" style="width:24px;height:24px;object-fit:contain;">
-                        <span style="font-size:14px;">${code}</span>
-                    </div>
-                `).join('');
-                
-                // Add click handlers
-                suggestionBox.querySelectorAll('.emoticon-suggestion').forEach(item => {
-                    item.addEventListener('click', function() {
-                        const code = this.dataset.code;
-                        const beforeColon = text.substring(0, text.lastIndexOf(':'));
-                        messageInput.value = beforeColon + code + ' ';
-                        suggestionBox.style.display = 'none';
-                        messageInput.focus();
-                    });
-                });
-                
-                suggestionBox.style.display = 'block';
-            } else {
-                suggestionBox.style.display = 'none';
-            }
-        } else {
-            suggestionBox.style.display = 'none';
-        }
-    });
-    
-    // Hide suggestions when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!messageInput.contains(e.target) && !suggestionBox.contains(e.target)) {
-            suggestionBox.style.display = 'none';
-        }
-    });
-    
-    // Keyboard navigation
-    let selectedIndex = -1;
-    messageInput.addEventListener('keydown', function(e) {
-        const suggestions = suggestionBox.querySelectorAll('.emoticon-suggestion');
-        if (suggestions.length === 0 || suggestionBox.style.display === 'none') return;
-        
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedIndex = (selectedIndex + 1) % suggestions.length;
-            updateSelection(suggestions);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedIndex = selectedIndex <= 0 ? suggestions.length - 1 : selectedIndex - 1;
-            updateSelection(suggestions);
-        } else if (e.key === 'Enter' && selectedIndex >= 0) {
-            e.preventDefault();
-            suggestions[selectedIndex].click();
-            selectedIndex = -1;
-        } else if (e.key === 'Escape') {
-            suggestionBox.style.display = 'none';
-            selectedIndex = -1;
-        }
-    });
-    
-    function updateSelection(suggestions) {
-        suggestions.forEach((item, i) => {
-            if (i === selectedIndex) {
-                item.style.background = '#0078d7';
-                item.style.color = 'white';
-                item.scrollIntoView({ block: 'nearest' });
-            } else {
-                item.style.background = 'transparent';
-                item.style.color = 'black';
-            }
-        });
-    }
-    
-    console.log('✅ Emoticon suggestions activated! Type : to see suggestions');
-})(); 
 </script>
 </body>
-    </html>
+            </html>
