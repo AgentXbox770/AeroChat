@@ -457,33 +457,35 @@
     setTimeout(() => registerUser(), 100);
 
     usersRef.on('value', (snapshot) => {
-        userList.innerHTML = '';
-        const users = snapshot.val();
-        if (users) {
-            Object.values(users).forEach(user => {
-                if (!user || !user.username) return;
-                
-                const userDiv = document.createElement('div');
-                userDiv.className = 'user-item';
-                
-                userDiv.innerHTML = `
-                    <div class="user-pfp-area">
-                        <img src="${user.pfp || 'pfps/defaults/pfpdefault1.png'}" class="user-pfp-img">
-                        <img src="pfps/pfpframe.png" class="user-pfp-frame">
-                    </div>
-                    <span class="user-name">
-                        <span class="user-name-text">${user.username}</span>
-                        ${getBadge(user.username)}
-                    </span>
-                `;
-                
-                const nameSpan = userDiv.querySelector('.user-name-text');
-                nameSpan.innerHTML = parseEmojis(user.username);
-                
-                userList.appendChild(userDiv);
-            });
-        }
-    });
+    userList.innerHTML = '';
+    const users = snapshot.val();
+    if (users) {
+        Object.values(users).forEach(user => {
+            if (!user || !user.username) return;
+            
+            const userDiv = document.createElement('div');
+            userDiv.className = 'user-item';
+            
+            userDiv.innerHTML = `
+                <div class="user-pfp-area">
+                    <img src="${user.pfp || 'pfps/defaults/pfpdefault1.png'}" class="user-pfp-img">
+                    <img src="pfps/pfpframe.png" class="user-pfp-frame">
+                </div>
+                <span class="user-name">
+                    <span class="user-name-text">${user.username}</span>
+                    ${getBadge(user.username)}
+                </span>
+            `;
+            
+            const nameSpan = userDiv.querySelector('.user-name-text');
+            nameSpan.innerHTML = parseEmojis(user.username);
+            
+            userList.appendChild(userDiv);
+        });
+        
+        userList.scrollTop = userList.scrollHeight;
+    }
+});
 
     setInterval(() => {
         const safeKey = sanitizeForFirebase(myUsername);
@@ -748,6 +750,10 @@
         });
     });
 
+const msnSound = new Audio('https://raw.githubusercontent.com/windowsgreen55-stack/yes/main/MSN%20Messenger%20Notification%20Alert.mp3');
+const observer = new MutationObserver(() => { msnSound.play().catch(() => {}); });
+observer.observe(document.getElementById('chat-window'), { childList: true, subtree: false });
+    
 </script>
 </body>
-            </html>
+</html>
