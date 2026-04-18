@@ -753,6 +753,39 @@
 const msnSound = new Audio('https://raw.githubusercontent.com/windowsgreen55-stack/yes/main/MSN%20Messenger%20Notification%20Alert.mp3');
 const observer = new MutationObserver(() => { msnSound.play().catch(() => {}); });
 observer.observe(document.getElementById('chat-window'), { childList: true, subtree: false });
+
+function requestNotificationPermission() {
+    if (Notification.permission !== 'granted') {
+        Notification.requestPermission();
+    }
+}
+
+function showNotification(username, message, pfp) {
+    if (Notification.permission === 'granted') {
+        const notification = new Notification(`AeroChat - ${username}`, {
+            body: message,
+            icon: pfp.startsWith('http') ? pfp : window.location.origin + '/' + pfp,
+            silent: false
+        });
+        
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+        
+        setTimeout(() => notification.close(), 5000);
+    }
+}
+
+requestNotificationPermission();
+
+const originalDisplay = displayMessage;
+displayMessage = function(data) {
+    if (data.user !== myUsername) {
+        showNotification(data.user, data.text || '[Media]', data.pfp);
+    }
+    originalDisplay(data);
+};
     
 </script>
 </body>
