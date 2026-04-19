@@ -1,0 +1,10 @@
+@keyframes rgb-button {
+    0% { color: #ff0000; border-color: #ff0000; }
+    33% { color: #00ff00; border-color: #00ff00; }
+    66% { color: #0000ff; border-color: #0000ff; }
+    100% { color: #ff0000; border-color: #ff0000; }
+}
+
+.rgb-effect {
+    animation: rgb-button 3s linear infinite;
+}
