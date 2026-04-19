@@ -108,17 +108,23 @@ function protectAdminButton() {
     const allowedAdmins = ["BryanSuperAero", "aeroplayerwindows7", "agentxbox!"];
 
     if (btn) {
-        if (!allowedAdmins.includes(user)) {
+        const isAllowed = allowedAdmins.includes(user);
+
+        if (!isAllowed) {
             btn.remove();
         } else {
-            btn.style.display = "inline-block";
+            btn.style.setProperty('display', 'inline-block', 'important');
         }
     }
 }
 
-window.addEventListener('load', protectAdminButton);
+window.addEventListener('load', () => {
+    setTimeout(protectAdminButton, 1000);
+});
 
-document.getElementById('username-input').addEventListener('change', protectAdminButton);
+document.getElementById('username-input').addEventListener('change', () => {
+    setTimeout(protectAdminButton, 100);
+});
 
     function parseEmoticons(text) {
         let parsedText = text;
