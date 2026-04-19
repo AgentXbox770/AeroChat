@@ -858,12 +858,12 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
     }
     
     addLog('[INFO] Initializing AeroChat...', '#7abcff');
-    addLog('[CONNECTING] Target: https://aerochat-c16d6-default-rtdb.firebaseio.com', '#7abcff');
+    addLog('[CONNECTING] Testing Firebase connection...', '#7abcff');
     
     const timeout = setTimeout(() => {
         clearInterval(dotInterval);
         addLog('[ERROR] Connection timeout (10 seconds)', '#ff6666');
-        addLog('[ERROR] Failed to reach Firebase servers', '#ff6666');
+        addLog('[ERROR] Firebase may be down or unreachable', '#ff6666');
         connectingText.textContent = 'Connection Failed';
         connectingText.style.color = '#ff6666';
         
@@ -874,30 +874,53 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         bg.appendChild(retryBtn);
     }, 10000);
     
-    firebase.database().ref('.info/connected').on('value', (snap) => {
+    // REAL CONNECTION TEST - tries to actually read from database
+    const testRef = firebase.database().ref('.info/connected');
+    const dataRef = firebase.database().ref('users');
+    
+    let connected = false;
+    let dataReceived = false;
+    
+    testRef.on('value', (snap) => {
         if (snap.val() === true) {
-            clearTimeout(timeout);
-            clearInterval(dotInterval);
-            addLog('[SUCCESS] Connected to Firebase!', '#66ff66');
-            addLog('[INFO] Loading user data...', '#7abcff');
-            
-            setTimeout(() => {
-                addLog('[SUCCESS] User authenticated', '#66ff66');
-                addLog('[INFO] Fetching messages...', '#7abcff');
-                
-                setTimeout(() => {
-                    addLog('[SUCCESS] Chat ready!', '#66ff66');
-                    connectingText.textContent = 'Welcome!';
-                    
-                    setTimeout(() => {
-                        bg.style.transition = 'opacity 0.5s';
-                        bg.style.opacity = '0';
-                        setTimeout(() => bg.remove(), 500);
-                    }, 800);
-                }, 500);
-            }, 300);
+            connected = true;
+            addLog('[SUCCESS] Connected to Firebase presence', '#66ff66');
+        } else {
+            addLog('[WARN] Firebase presence offline', '#ffcc00');
         }
     });
+    
+    // Try to actually read data - this will fail if database is down
+    dataRef.limitToFirst(1).once('value')
+        .then((snap) => {
+            dataReceived = true;
+            clearTimeout(timeout);
+            clearInterval(dotInterval);
+            addLog('[SUCCESS] Database read successful!', '#66ff66');
+            addLog('[INFO] Loading AeroChat...', '#7abcff');
+            
+            connectingText.textContent = 'Connected!';
+            
+            setTimeout(() => {
+                bg.style.transition = 'opacity 0.5s';
+                bg.style.opacity = '0';
+                setTimeout(() => bg.remove(), 500);
+            }, 800);
+        })
+        .catch((error) => {
+            clearTimeout(timeout);
+            clearInterval(dotInterval);
+            addLog(`[ERROR] Database read failed: ${error.message}`, '#ff6666');
+            addLog('[ERROR] Firebase database is unreachable', '#ff6666');
+            connectingText.textContent = 'Connection Failed';
+            connectingText.style.color = '#ff6666';
+            
+            const retryBtn = document.createElement('button');
+            retryBtn.textContent = 'Retry';
+            retryBtn.style.cssText = 'margin-top: 20px; padding: 10px 30px; font-size: 16px; cursor: pointer;';
+            retryBtn.onclick = () => location.reload();
+            bg.appendChild(retryBtn);
+        });
 })();
     
 </script>
