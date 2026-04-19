@@ -786,6 +786,36 @@ displayMessage = function(data) {
     }
     originalDisplay(data);
 };
+
+(function() {
+    const ua = navigator.userAgent;
+    const isOld = 
+        (ua.includes('MSIE')) ||
+        (ua.includes('Trident') && !ua.includes('Edge')) ||
+        (ua.includes('Firefox') && parseInt(ua.split('Firefox/')[1]) < 60) ||
+        (ua.includes('Chrome') && parseInt(ua.split('Chrome/')[1]) < 60) ||
+        (ua.includes('Safari') && !ua.includes('Chrome') && parseInt(ua.split('Version/')[1]) < 12);
+    
+    if (isOld) {
+        document.documentElement.innerHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Please update your browser</title>
+            </head>
+            <body>
+                <h1>Please update your browser</h1>
+                <p>Your browser does not support the latest version of AeroChat.</p>
+                <p>Download a modern browser:</p>
+                <a href="https://www.google.com/chrome/"><button>Update Chrome</button></a>
+                <a href="https://www.mozilla.org/firefox/new/"><button>Update Firefox</button></a>
+                <a href="https://www.microsoft.com/edge/download"><button>Update Edge</button></a>
+            </body>
+            </html>
+        `;
+    }
+})();
     
 </script>
 </body>
