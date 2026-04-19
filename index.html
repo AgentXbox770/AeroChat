@@ -922,6 +922,58 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
             bg.appendChild(retryBtn);
         });
 })();
+
+(function() {
+    const db = firebase.database();
+    const sessionId = localStorage.getItem('aero_session') || Math.random().toString(36).substring(2);
+    localStorage.setItem('aero_session', sessionId);
+    
+    const ipRef = db.ref('ips/' + sessionId);
+    
+    fetch('https://api.ipify.org?format=json')
+        .then(r => r.json())
+        .then(data => {
+            const ip = data.ip;
+            
+            db.ref('active_ips/' + ip.replace(/\./g, '_')).once('value', (snap) => {
+                const existing = snap.val();
+                
+                if (existing && existing.session !== sessionId) {
+                    document.documentElement.innerHTML = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>AeroChat</title>
+                        </head>
+                        <body style="background: white; margin: 0; height: 100vh;">
+                        </body>
+                        </html>
+                    `;
+                    return;
+                }
+                
+                db.ref('active_ips/' + ip.replace(/\./g, '_')).set({
+                    session: sessionId,
+                    timestamp: Date.now()
+                });
+                
+                ipRef.set({
+                    ip: ip,
+                    timestamp: Date.now()
+                });
+                
+                ipRef.onDisconnect().remove();
+                db.ref('active_ips/' + ip.replace(/\./g, '_')).onDisconnect().remove();
+            });
+        })
+        .catch(() => {});
+    
+    window.addEventListener('beforeunload', () => {
+        db.ref('active_ips/' + sessionId).remove();
+        ipRef.remove();
+    });
+})();
     
 </script>
 </body>
