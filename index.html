@@ -755,15 +755,18 @@ const observer = new MutationObserver(() => { msnSound.play().catch(() => {}); }
 observer.observe(document.getElementById('chat-window'), { childList: true, subtree: false });
 
 (function() {
-    const ua = navigator.userAgent;
-    const isOld = 
-        (ua.includes('MSIE')) ||
-        (ua.includes('Trident') && !ua.includes('Edge')) ||
-        (ua.includes('Firefox') && parseInt(ua.split('Firefox/')[1]) < 60) ||
-        (ua.includes('Chrome') && parseInt(ua.split('Chrome/')[1]) < 60) ||
-        (ua.includes('Safari') && !ua.includes('Chrome') && parseInt(ua.split('Version/')[1]) < 12);
-    
-    if (isOld) {
+    // Feature Detection: Check for essential modern web capabilities
+    var supportsBackdropFilter = CSS.supports('backdrop-filter', 'blur(10px)') || CSS.supports('-webkit-backdrop-filter', 'blur(10px)');
+    var supportsFetch = typeof window.fetch === 'function';
+    var supportsPromises = typeof window.Promise === 'function';
+    var supportsArrowFunctions = false;
+    try {
+        new Function('() => {}');
+        supportsArrowFunctions = true;
+    } catch (e) { }
+
+    // If any essential feature is missing, the browser is too old or incompatible
+    if (!supportsBackdropFilter || !supportsFetch || !supportsPromises || !supportsArrowFunctions) {
         document.documentElement.innerHTML = `
             <!DOCTYPE html>
             <html>
