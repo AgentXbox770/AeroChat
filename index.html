@@ -808,6 +808,97 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         `;
     }
 })();
+
+(function() {
+    const bg = document.createElement('div');
+    bg.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: url('wallpapers/wallpaper1.png') center/cover;
+        z-index: 9999; display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+    `;
+    
+    const loadingImg = document.createElement('img');
+    loadingImg.src = 'loading.gif';
+    loadingImg.style.cssText = 'width: 64px; height: 64px;';
+    
+    const connectingText = document.createElement('div');
+    connectingText.style.cssText = `
+        color: white; font-size: 24px; margin-top: 20px;
+        text-shadow: 2px 2px 4px black; font-family: Aero, sans-serif;
+    `;
+    connectingText.textContent = 'Connecting';
+    
+    const logsDiv = document.createElement('div');
+    logsDiv.style.cssText = `
+        color: #ccc; font-size: 12px; margin-top: 30px;
+        font-family: monospace; max-height: 200px; overflow-y: auto;
+        text-shadow: 1px 1px 2px black; width: 500px;
+    `;
+    
+    bg.appendChild(loadingImg);
+    bg.appendChild(connectingText);
+    bg.appendChild(logsDiv);
+    document.body.appendChild(bg);
+    
+    const dots = ['', '.', '..', '...'];
+    let dotIndex = 0;
+    const dotInterval = setInterval(() => {
+        dotIndex = (dotIndex + 1) % dots.length;
+        connectingText.textContent = 'Connecting' + dots[dotIndex];
+    }, 400);
+    
+    function addLog(msg, color = '#ccc') {
+        const log = document.createElement('div');
+        const time = new Date().toLocaleTimeString();
+        log.style.color = color;
+        log.textContent = `[${time}] ${msg}`;
+        logsDiv.appendChild(log);
+        logsDiv.scrollTop = logsDiv.scrollHeight;
+    }
+    
+    addLog('[INFO] Initializing AeroChat...', '#7abcff');
+    addLog('[CONNECTING] Target: https://aerochat-c16d6-default-rtdb.firebaseio.com', '#7abcff');
+    
+    const timeout = setTimeout(() => {
+        clearInterval(dotInterval);
+        addLog('[ERROR] Connection timeout (10 seconds)', '#ff6666');
+        addLog('[ERROR] Failed to reach Firebase servers', '#ff6666');
+        connectingText.textContent = 'Connection Failed';
+        connectingText.style.color = '#ff6666';
+        
+        const retryBtn = document.createElement('button');
+        retryBtn.textContent = 'Retry';
+        retryBtn.style.cssText = 'margin-top: 20px; padding: 10px 30px; font-size: 16px; cursor: pointer;';
+        retryBtn.onclick = () => location.reload();
+        bg.appendChild(retryBtn);
+    }, 10000);
+    
+    firebase.database().ref('.info/connected').on('value', (snap) => {
+        if (snap.val() === true) {
+            clearTimeout(timeout);
+            clearInterval(dotInterval);
+            addLog('[SUCCESS] Connected to Firebase!', '#66ff66');
+            addLog('[INFO] Loading user data...', '#7abcff');
+            
+            setTimeout(() => {
+                addLog('[SUCCESS] User authenticated', '#66ff66');
+                addLog('[INFO] Fetching messages...', '#7abcff');
+                
+                setTimeout(() => {
+                    addLog('[SUCCESS] Chat ready!', '#66ff66');
+                    connectingText.textContent = 'Welcome!';
+                    
+                    setTimeout(() => {
+                        bg.style.transition = 'opacity 0.5s';
+                        bg.style.opacity = '0';
+                        setTimeout(() => bg.remove(), 500);
+                    }, 800);
+                }, 500);
+            }, 300);
+        }
+    });
+})();
     
 </script>
 </body>
