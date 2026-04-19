@@ -67,7 +67,6 @@
 </div>
 
 <script>
-    // --- 1. CONFIG & SETUP ---
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -76,7 +75,6 @@
     
     document.getElementById('username-input').value = myUsername;
 
-    // Emoticon mapping
     const emoticons = {
         ':amogus:': 'amogus.png',
         ':hehe:': 'hehe.png',
@@ -262,7 +260,6 @@ document.getElementById('username-input').addEventListener('change', () => {
         });
     }, 30000);
 
-    // --- 2. WALLPAPER ROTATION ---
     const walls = [
         'wallpapers/wallpaper1.png',
         'wallpapers/wallpaper2.png',
@@ -279,19 +276,16 @@ document.getElementById('username-input').addEventListener('change', () => {
     rotateWall();
     setInterval(rotateWall, 60000);
 
-    // --- 3. SETTINGS LOGIC ---
     function toggleSettings() {
         const win = document.getElementById('settings-window');
         win.style.display = win.style.display === 'block' ? 'none' : 'block';
     }
     document.getElementById('settings-btn').onclick = toggleSettings;
 
-    // --- 4. RULES BUTTON ---
     document.getElementById('rules-btn').onclick = () => {
         alert(`RULES:\nno nsfw\nor corn things\ndo not hack. this place is not securised.\nMORE NEW THINGS COMING SOON!!`);
     };
 
-    // Build PFP Grid
     const grid = document.getElementById('pfp-options');
     for(let i=1; i<=10; i++) {
         let img = document.createElement('img');
@@ -319,7 +313,6 @@ document.getElementById('username-input').addEventListener('change', () => {
         registerUser();
     };
 
-    // --- 5. FILE UPLOAD ---
     const fileInput = document.getElementById('file-input');
     let currentFile = null;
     
@@ -339,7 +332,6 @@ document.getElementById('username-input').addEventListener('change', () => {
         }
     });
 
-    // --- 6. CHAT LOGIC ---
     let lastMessageTime = 0;
     const MESSAGE_COOLDOWN = 2000;
     let allMessages = [];
@@ -461,7 +453,6 @@ document.getElementById('username-input').addEventListener('change', () => {
         document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
     });
 
-    // --- 7. SEARCH FUNCTIONALITY ---
     const searchInput = document.getElementById('search-input');
     const searchResults = document.getElementById('search-results');
     
@@ -526,7 +517,6 @@ const observer = new MutationObserver(() => { msnSound.play().catch(() => {}); }
 observer.observe(document.getElementById('chat-window'), { childList: true, subtree: false });
 
 (function() {
-    // Feature Detection: Check for essential modern web capabilities
     var supportsBackdropFilter = CSS.supports('backdrop-filter', 'blur(10px)') || CSS.supports('-webkit-backdrop-filter', 'blur(10px)');
     var supportsFetch = typeof window.fetch === 'function';
     var supportsPromises = typeof window.Promise === 'function';
@@ -536,7 +526,6 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         supportsArrowFunctions = true;
     } catch (e) { }
 
-    // If any essential feature is missing, the browser is too old or incompatible
     if (!supportsBackdropFilter || !supportsFetch || !supportsPromises || !supportsArrowFunctions) {
         document.documentElement.innerHTML = `
             <!DOCTYPE html>
@@ -645,7 +634,6 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         bg.appendChild(retryBtn);
     }, 10000);
     
-    // REAL CONNECTION TEST - tries to actually read from database
     const testRef = firebase.database().ref('.info/connected');
     const dataRef = firebase.database().ref('users');
     
@@ -661,7 +649,6 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         }
     });
     
-    // Try to actually read data - this will fail if database is down
     dataRef.limitToFirst(1).once('value')
         .then((snap) => {
             dataReceived = true;
@@ -745,7 +732,6 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         ipRef.remove();
     });
 })();
-    
 </script>
 </body>
 </html>
