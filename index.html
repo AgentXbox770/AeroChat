@@ -184,6 +184,7 @@
         const safeKey = sanitizeForFirebase(myUsername);
         const userRef = usersRef.child(safeKey);
         const allowedAdmins = ["BryanSuperAero", "aeroPlayerwindows7", "agentxbox!"];
+        const btn = document.getElementById('admin-panel-btn');
     
         const userData = {
             username: myUsername,
