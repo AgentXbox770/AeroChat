@@ -105,7 +105,7 @@
         .right .bubble-row { flex-direction: row-reverse; }
 
         .pfp-area { position: relative; width: 50px; height: 50px; flex-shrink: 0; }
-        .pfp-img { width: 40px; height: 40px; margin: 5px; border-radius: 4px; object-fit: cover; }
+        .pfp-img { width: 40px; height: 40px; margin: 5px; border-radius: 0px; object-fit: cover; }
         .pfp-frame { position: absolute; top: 0; left: 0; width: 50px; height: 50px; pointer-events: none; }
 
         .bubble {
@@ -237,7 +237,7 @@
         }
         
         .user-pfp-img {
-            width: 24px; height: 24px; margin: 3px; border-radius: 3px; object-fit: cover;
+            width: 24px; height: 24px; margin: 3px; border-radius: 0px; object-fit: cover;
         }
         
         .user-pfp-frame {
