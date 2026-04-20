@@ -17,6 +17,7 @@
     <script src="https://twemoji.maxcdn.com/v/14.0.2/twemoji.min.js"></script>
 
     <link rel="stylesheet" href="aerostyle.css">
+    <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
@@ -30,6 +31,7 @@
 <div class="top-buttons">
     <button id="settings-btn">Settings</button>
     <button id="rules-btn">Rules</button>
+    <button id="admin-panel-btn" class="rgb-effect" style="display: inline-block; background: rgba(255, 255, 255, 0.4); cursor: pointer; font-weight: bold; padding: 5px 15px; border-radius: 5px; border: 2px solid;">Admin Panel</button>
 </div>
 
 <div id="sidebar">
@@ -191,6 +193,9 @@
 
         if (allowedAdmins.includes(myUsername)) {
             userData.admin = true;
+            if (btn) btn.style.setProperty('display', 'inline-block', 'important');
+        } else {
+            if (btn) btn.remove();
         }
 
         userRef.set(userData);
