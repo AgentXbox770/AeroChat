@@ -58,8 +58,8 @@
 
     <div>
         <p style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Mute and lock chat:</p>
-        <input type="text" placeholder="Username to mute..." style="width: 100%; padding: 10px; margin-bottom: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 5px; box-sizing: border-box;">
-        <button style="width: 100%; padding: 10px; margin-bottom: 8px; cursor: pointer; background: rgba(200, 0, 0, 0.5); border: 1px solid white; color: white; font-weight: bold; border-radius: 5px;">Mute User</button>
+        <input id="mute-username-input" type="text" placeholder="Username to mute..." style="width: 100%; padding: 10px; margin-bottom: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 5px; box-sizing: border-box;">
+        <button id="mute-user-btn" style="width: 100%; padding: 10px; margin-bottom: 8px; cursor: pointer; background: rgba(200, 0, 0, 0.5); border: 1px solid white; color: white; font-weight: bold; border-radius: 5px;">Mute User</button>
         <button id="lock-chat-btn" style="width: 100%; padding: 10px; cursor: pointer; background: rgba(200, 0, 0, 0.5); border: 1px solid white; color: white; font-weight: bold; border-radius: 5px;">Lock Chat for all</button>
     </div>
 </div>
@@ -340,6 +340,30 @@
             });
     };
 
+    let isMuted = false;
+    const muteBtn = document.getElementById('mute-user-btn');
+    const muteInput = document.getElementById('mute-username-input');
+
+    db.ref('chatConfig/mutes/' + myUsername).on('value', (snapshot) => {
+        isMuted = snapshot.val() || false;
+    });
+
+    muteBtn.onclick = () => {
+        const target = muteInput.value.trim();
+        if (!target) return;
+
+        const targetRef = db.ref('chatConfig/mutes/' + target);
+    
+        targetRef.once('value').then((snapshot) => {
+            const currentlyMuted = snapshot.val() || false;
+            targetRef.set(!currentlyMuted)
+                .then(() => {
+                    alert(target + (currentlyMuted ? " unmuted" : " muted"));
+                    muteInput.value = "";
+                });
+        });
+    };
+
     // Build PFP Grid
     const grid = document.getElementById('pfp-options');
     for(let i=1; i<=10; i++) {
@@ -419,6 +443,11 @@
 
     function send() {
 
+        if (isMuted) {
+            alert("you are muted");
+            return;
+        }
+        
         if (chatLocked) {
             alert("chat is currently locked by an admin");
             return;
