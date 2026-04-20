@@ -60,7 +60,7 @@
         <p style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Mute and lock chat:</p>
         <input type="text" placeholder="Username to mute..." style="width: 100%; padding: 10px; margin-bottom: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 5px; box-sizing: border-box;">
         <button style="width: 100%; padding: 10px; margin-bottom: 8px; cursor: pointer; background: rgba(200, 0, 0, 0.5); border: 1px solid white; color: white; font-weight: bold; border-radius: 5px;">Mute User</button>
-        <button style="width: 100%; padding: 10px; cursor: pointer; background: rgba(200, 0, 0, 0.5); border: 1px solid white; color: white; font-weight: bold; border-radius: 5px;">Lock Chat for all</button>
+        <button id="lock-chat-btn" style="width: 100%; padding: 10px; cursor: pointer; background: rgba(200, 0, 0, 0.5); border: 1px solid white; color: white; font-weight: bold; border-radius: 5px;">Lock Chat for all</button>
     </div>
 </div>
     
@@ -318,6 +318,28 @@
         document.getElementById('admin-panel').style.display = 'block';
     };
 
+    let chatLocked = false;
+    const lockBtn = document.getElementById('lock-chat-btn');
+
+    db.ref('chatConfig/locked').on('value', (snapshot) => {
+        chatLocked = snapshot.val() || false;
+    
+        if (chatLocked) {
+            lockBtn.innerText = "Unlock Chat for all";
+            lockBtn.style.background = "rgba(0, 150, 0, 0.5)";
+        } else {
+            lockBtn.innerText = "Lock Chat for all";
+            lockBtn.style.background = "rgba(200, 0, 0, 0.5)";
+        }
+    });
+
+    lockBtn.onclick = () => {
+        db.ref('chatConfig').update({ locked: !chatLocked })
+            .catch((err) => {
+                alert("error: " + err);
+            });
+    };
+
     // Build PFP Grid
     const grid = document.getElementById('pfp-options');
     for(let i=1; i<=10; i++) {
@@ -396,6 +418,12 @@
     }
 
     function send() {
+
+        if (chatLocked) {
+            alert("chat is currently locked by an admin");
+            return;
+        }
+        
         const now = Date.now();
         if (now - lastMessageTime < MESSAGE_COOLDOWN) {
             alert("Slow down! Wait 2 seconds between messages.");
