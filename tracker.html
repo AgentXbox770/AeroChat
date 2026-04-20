@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>aero sound tracker</title>
+    <style>
+        @font-face {
+            font-family: 'Aero';
+            src: url('AERO_03.otf') format('opentype');
+        }
+
+        :root {
+            --aero-blue: linear-gradient(to bottom, #7abcff 0%, #4096ee 50%, #11599e 51%, #3982c6 100%);
+            --aero-white: linear-gradient(to bottom, #ffffff 0%, #f1f1f1 50%, #e1e1e1 51%, #f6f6f6 100%);
+            --frutiger-bg: linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 100%);
+        }
+
+        * {
+            font-family: 'Aero', 'Segoe UI', Tahoma, sans-serif;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background: var(--frutiger-bg);
+        }
+
+        .aero-full-container {
+            width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(15px);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 15px; border-radius: 20px;
+        }
+
+        .title {
+            font-size: 11px; margin-bottom: 10px;
+            text-transform: lowercase; color: #01579b; font-weight: bold;
+        }
+
+        .status-box {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 15px; padding: 15px;
+            margin-bottom: 15px; width: 90%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        #track-name { font-size: 10px; color: #666; margin-bottom: 5px; text-transform: lowercase; }
+        #status-text {
+            font-size: 18px; font-weight: 900; text-transform: lowercase;
+            background: linear-gradient(to bottom, #0288d1, #01579b);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .progress-container {
+            width: 90%; height: 8px; background: rgba(0, 0, 0, 0.05);
+            border-radius: 10px; border: 1px solid rgba(255,255,255,0.9);
+            margin-bottom: 15px; overflow: hidden;
+        }
+
+        .progress-bar { width: 0%; height: 100%; background: var(--aero-blue); transition: width 0.1s linear; }
+
+        .controls { display: flex; gap: 15px; align-items: center; }
+        .nav-btn {
+            background: var(--aero-white); border: 1px solid #ccc;
+            width: 35px; height: 35px; border-radius: 50%; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        #play-pause-btn {
+            background: var(--aero-blue); color: white;
+            padding: 8px 25px; border-radius: 20px; cursor: pointer;
+            font-size: 12px; font-weight: bold; text-transform: lowercase;
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="aero-full-container">
+        <div class="title">sound tracker system</div>
+        <div class="status-box">
+            <div id="track-name">loading...</div>
+            <div id="status-text">standby</div>
+        </div>
+        <div class="progress-container"><div class="progress-bar" id="progress"></div></div>
+        <div class="controls">
+            <button class="nav-btn" id="prev-btn">«</button>
+            <button id="play-pause-btn">play</button>
+            <button class="nav-btn" id="next-btn">»</button>
+        </div>
+    </div>
+    <script>
+        const trackName = document.getElementById('track-name');
+        const statusText = document.getElementById('status-text');
+        const progressBar = document.getElementById('progress');
+        const btn = document.getElementById('play-pause-btn');
+        const playlist = [
+            { src: 'sounds/sound1.mp3', limit: null },
+            { src: 'sounds/sound2.mp3', limit: 64 },
+            { src: 'sounds/sound3.mp3', limit: null },
+            { src: 'sounds/sound4.mp3', limit: null }
+        ];
+        let current = 0; const audio = new Audio();
+        function playTrack(index) {
+            current = index; audio.src = playlist[current].src;
+            audio.play(); updateUI();
+        }
+        function updateUI() {
+            trackName.innerText = "playing: " + playlist[current].src.replace('sounds/', '');
+            statusText.innerText = "active"; btn.innerText = "pause";
+        }
+        btn.onclick = () => {
+            if (audio.paused) { audio.src === "" ? playTrack(0) : audio.play(); btn.innerText = "pause"; statusText.innerText = "active"; }
+            else { audio.pause(); btn.innerText = "play"; statusText.innerText = "paused"; }
+        };
+        document.getElementById('next-btn').onclick = () => next();
+        document.getElementById('prev-btn').onclick = () => { current = (current - 1 + playlist.length) % playlist.length; playTrack(current); };
+        audio.ontimeupdate = () => {
+            const track = playlist[current]; const duration = track.limit || audio.duration;
+            progressBar.style.width = Math.min((audio.currentTime / duration) * 100, 100) + "%";
+            if (track.limit && audio.currentTime >= track.limit) next();
+        };
+        audio.onended = () => { if (!playlist[current].limit) next(); };
+        function next() { current = (current + 1) % playlist.length; playTrack(current); }
+    </script>
+</body>
+</html>
