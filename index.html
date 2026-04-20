@@ -47,7 +47,7 @@
     
     <div style="margin-bottom: 20px;">
         <p style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Server Actions:</p>
-        <button style="width: 100%; padding: 10px; margin-bottom: 8px; cursor: pointer; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.5); color: white; font-weight: bold; border-radius: 5px;">Clear All Messages</button>
+        <button id="clear-msg-btn" style="width: 100%; padding: 10px; margin-bottom: 8px; cursor: pointer; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.5); color: white; font-weight: bold; border-radius: 5px;">Clear All Messages</button>
     </div>
 
     <div style="margin-bottom: 20px;">
@@ -328,7 +328,7 @@
         grid.appendChild(img);
     }
 
-    const clearBtn = document.querySelector('#admin-panel button');
+    const clearBtn = document.getElementById('clear-msg-btn');
 
     clearBtn.onclick = () => {
         if (confirm("are you sure?? this will destroy all the history of chat")) {
