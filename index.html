@@ -16,7 +16,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://twemoji.maxcdn.com/v/14.0.2/twemoji.min.js"></script>
 
-    <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="aerostyle.css">
 </head>
 <body>
@@ -31,7 +30,6 @@
 <div class="top-buttons">
     <button id="settings-btn">Settings</button>
     <button id="rules-btn">Rules</button>
-    <button id="admin-panel-btn" class="rgb-effect" style="display: inline-block; background: rgba(255, 255, 255, 0.4); cursor: pointer; font-weight: bold; padding: 5px 15px; border-radius: 5px; border: 2px solid;">Admin Panel</button>
 </div>
 
 <div id="sidebar">
@@ -67,6 +65,7 @@
 </div>
 
 <script>
+    // --- 1. CONFIG & SETUP ---
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -75,6 +74,7 @@
     
     document.getElementById('username-input').value = myUsername;
 
+    // Emoticon mapping
     const emoticons = {
         ':amogus:': 'amogus.png',
         ':hehe:': 'hehe.png',
@@ -100,25 +100,6 @@
         ':awesome:': 'awesome.png'
     };
 
-function protectAdminButton() {
-    const user = localStorage.getItem('username');
-    const btn = document.getElementById('admin-panel-btn');
-    const allowedAdmins = ["BryanSuperAero", "aeroplayerwindows7", "agentxbox!"];
-
-    if (!btn) return;
-
-    btn.style.setProperty('display', allowedAdmins.includes(user) ? 'inline-block' : 'none', 'important');
-}
-
-window.addEventListener('load', protectAdminButton);
-
-const usernameInput = document.getElementById('username-input');
-if (usernameInput) {
-    usernameInput.addEventListener('input', () => {
-        localStorage.setItem('username', usernameInput.value);
-        protectAdminButton();
-    });
-}
     function parseEmoticons(text) {
         let parsedText = text;
         for (const [code, filename] of Object.entries(emoticons)) {
@@ -177,7 +158,6 @@ if (usernameInput) {
 
     function getBadge(username) {
         if (username === "agentxbox!") return '<img src="badges/owner.gif" class="badge-img" title="Owner">';
-	if (username === "aeroPlayerwindows7") return '<img src="badges/admin.png" class="badge-img" title="Admin">';
         if (username === "BryanSuperAero") return '<img src="badges/admin.png" class="badge-img" title="Admin">';
         return '<img src="badges/member.png" class="badge-img" title="Member">';
     }
@@ -255,6 +235,7 @@ if (usernameInput) {
         });
     }, 30000);
 
+    // --- 2. WALLPAPER ROTATION ---
     const walls = [
         'wallpapers/wallpaper1.png',
         'wallpapers/wallpaper2.png',
@@ -271,16 +252,19 @@ if (usernameInput) {
     rotateWall();
     setInterval(rotateWall, 60000);
 
+    // --- 3. SETTINGS LOGIC ---
     function toggleSettings() {
         const win = document.getElementById('settings-window');
         win.style.display = win.style.display === 'block' ? 'none' : 'block';
     }
     document.getElementById('settings-btn').onclick = toggleSettings;
 
+    // --- 4. RULES BUTTON ---
     document.getElementById('rules-btn').onclick = () => {
         alert(`RULES:\nno nsfw\nor corn things\ndo not hack. this place is not securised.\nMORE NEW THINGS COMING SOON!!`);
     };
 
+    // Build PFP Grid
     const grid = document.getElementById('pfp-options');
     for(let i=1; i<=10; i++) {
         let img = document.createElement('img');
@@ -308,6 +292,7 @@ if (usernameInput) {
         registerUser();
     };
 
+    // --- 5. FILE UPLOAD ---
     const fileInput = document.getElementById('file-input');
     let currentFile = null;
     
@@ -327,6 +312,7 @@ if (usernameInput) {
         }
     });
 
+    // --- 6. CHAT LOGIC ---
     let lastMessageTime = 0;
     const MESSAGE_COOLDOWN = 2000;
     let allMessages = [];
@@ -448,6 +434,7 @@ if (usernameInput) {
         document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
     });
 
+    // --- 7. SEARCH FUNCTIONALITY ---
     const searchInput = document.getElementById('search-input');
     const searchResults = document.getElementById('search-results');
     
@@ -488,10 +475,6 @@ if (usernameInput) {
         
         searchResults.style.display = 'block';
     });
-
-window.addEventListener('load', protectAdminButton);
-
-document.getElementById('username-input').addEventListener('change', protectAdminButton);
     
     document.addEventListener('click', (e) => {
         if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
@@ -512,6 +495,7 @@ const observer = new MutationObserver(() => { msnSound.play().catch(() => {}); }
 observer.observe(document.getElementById('chat-window'), { childList: true, subtree: false });
 
 (function() {
+    // Feature Detection: Check for essential modern web capabilities
     var supportsBackdropFilter = CSS.supports('backdrop-filter', 'blur(10px)') || CSS.supports('-webkit-backdrop-filter', 'blur(10px)');
     var supportsFetch = typeof window.fetch === 'function';
     var supportsPromises = typeof window.Promise === 'function';
@@ -521,6 +505,7 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         supportsArrowFunctions = true;
     } catch (e) { }
 
+    // If any essential feature is missing, the browser is too old or incompatible
     if (!supportsBackdropFilter || !supportsFetch || !supportsPromises || !supportsArrowFunctions) {
         document.documentElement.innerHTML = `
             <!DOCTYPE html>
@@ -629,6 +614,7 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         bg.appendChild(retryBtn);
     }, 10000);
     
+    // REAL CONNECTION TEST - tries to actually read from database
     const testRef = firebase.database().ref('.info/connected');
     const dataRef = firebase.database().ref('users');
     
@@ -644,6 +630,7 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         }
     });
     
+    // Try to actually read data - this will fail if database is down
     dataRef.limitToFirst(1).once('value')
         .then((snap) => {
             dataReceived = true;
@@ -727,6 +714,7 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         ipRef.remove();
     });
 })();
+    
 </script>
 </body>
 </html>
