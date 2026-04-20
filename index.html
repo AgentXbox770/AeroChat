@@ -159,6 +159,7 @@
     function getBadge(username) {
         if (username === "agentxbox!") return '<img src="badges/owner.gif" class="badge-img" title="Owner">';
         if (username === "BryanSuperAero") return '<img src="badges/admin.png" class="badge-img" title="Admin">';
+        if (username === "aeroPlayerwindows7") return '<img src="badges/admin.png" class="badge-img" title="Admin">';
         return '<img src="badges/member.png" class="badge-img" title="Member">';
     }
 
@@ -180,11 +181,19 @@
     function registerUser() {
         const safeKey = sanitizeForFirebase(myUsername);
         const userRef = usersRef.child(safeKey);
-        userRef.set({
+        const allowedAdmins = ["BryanSuperAero", "aeroplayerwindows7", "agentxbox!"];
+    
+        const userData = {
             username: myUsername,
             pfp: myPfp,
             lastSeen: firebase.database.ServerValue.TIMESTAMP
-        });
+        };
+
+        if (allowedAdmins.includes(myUsername)) {
+            userData.admin = true;
+        }
+
+        userRef.set(userData);
         userRef.onDisconnect().remove();
     }
     
