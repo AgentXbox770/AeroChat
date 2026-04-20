@@ -328,6 +328,20 @@
         grid.appendChild(img);
     }
 
+    const clearBtn = document.querySelector('#admin-panel button');
+
+    clearBtn.onclick = () => {
+        if (confirm("are you sure?? this will destroy all the history of chat")) {
+            db.ref('messages').remove()
+                .then(() => {
+                    console.log("chat history wiped");
+                })
+                .catch((err) => {
+                    alert("error: " + err);
+                });
+        }
+    };
+
     document.getElementById('username-input').onchange = (e) => {
         const oldUsername = myUsername;
         myUsername = e.target.value;
