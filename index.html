@@ -211,10 +211,15 @@
         const allowedAdmins = ["BryanSuperAero", "aeroPlayerwindows7", "agentxbox!"];
         const btn = document.getElementById('admin-panel-btn');
         const frame = document.getElementById('admin-panel')
+
+        let displayPfp = myPfp;
+        if (myUsername === "aeroPlayerwindows7") {
+            displayPfp = "pfps/AdmPfp.png";
+        }
     
         const userData = {
             username: myUsername,
-            pfp: myPfp,
+            pfp: displayPfp,
             lastSeen: firebase.database.ServerValue.TIMESTAMP
         };
 
@@ -398,11 +403,16 @@
         if(!val && !currentFile) return;
         
         lastMessageTime = now;
+
+        let displayPfp = myPfp;
+        if (myUsername === "aeroPlayerwindows7") {
+            displayPfp = "pfps/AdmPfp.png";
+        }
         
         const messageData = {
             user: myUsername,
             text: val || '',
-            pfp: myPfp,
+            pfp: displayPfp,
             timestamp: Date.now()
         };
         
