@@ -920,6 +920,106 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         }
     });
 })();
+
+(function() {
+    const db = firebase.database();
+    
+    function sanitize(text) {
+        if (!text) return '';
+        
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#x27;')
+            .replace(/\//g, '&#x2F;')
+            .replace(/\\/g, '&#x5C;')
+            .replace(/`/g, '&#96;')
+            .replace(/\{/g, '&#123;')
+            .replace(/\}/g, '&#125;')
+            .replace(/\[/g, '&#91;')
+            .replace(/\]/g, '&#93;')
+            .replace(/\(/g, '&#40;')
+            .replace(/\)/g, '&#41;')
+            .replace(/=/g, '&#61;')
+            .replace(/\+/g, '&#43;')
+            .replace(/-/g, '&#45;')
+            .replace(/\*/g, '&#42;')
+            .replace(/\|/g, '&#124;')
+            .replace(/\^/g, '&#94;')
+            .replace(/%/g, '&#37;')
+            .replace(/\$/g, '&#36;')
+            .replace(/!/g, '&#33;')
+            .replace(/@/g, '&#64;')
+            .replace(/#/g, '&#35;')
+            .replace(/\./g, '&#46;')
+            .replace(/,/g, '&#44;')
+            .replace(/\?/g, '&#63;')
+            .replace(/:/g, '&#58;')
+            .replace(/;/g, '&#59;');
+    }
+    
+    const originalSend = send;
+    send = function() {
+        const input = document.getElementById('messageInput');
+        const val = input.value;
+        
+        if (val) {
+            const sanitized = sanitize(val);
+            if (sanitized !== val) {
+                input.value = sanitized;
+            }
+        }
+        
+        originalSend();
+    };
+    
+    db.ref('messages').on('child_added', (snap) => {
+        const data = snap.val();
+        if (data && data.text) {
+            const sanitized = sanitize(data.text);
+            if (sanitized !== data.text) {
+                db.ref('messages/' + snap.key).update({ text: sanitized });
+            }
+        }
+    });
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        .bubble * {
+            all: unset !important;
+            display: inline !important;
+            font: inherit !important;
+            color: inherit !important;
+            background: transparent !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.trustedTypes) {
+            window.trustedTypes.createPolicy('default', {
+                createHTML: (input) => sanitize(input),
+                createScript: () => '',
+                createScriptURL: () => ''
+            });
+        }
+    });
+    
+    delete window.Function;
+    delete window.eval;
+    delete window.setTimeout;
+    delete window.setInterval;
+    
+    Object.defineProperty(document, 'cookie', {
+        get: () => '',
+        set: () => {}
+    });
+})();
     
 </script>
 </body>
