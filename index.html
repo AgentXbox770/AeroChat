@@ -145,6 +145,10 @@
     })();
     // --- 1. CONFIG & SETUP ---
     firebase.initializeApp(firebaseConfig);
+
+    const appCheck = firebase.appCheck();
+    appCheck.activate('6LfAYcMsAAAAAPXmtJ8wUj5me6N6So8UHOmSSuPt', true);
+    
     const db = firebase.database();
 
     let myUsername = localStorage.getItem('username') || "Guest" + Math.floor(Math.random()*1000);
