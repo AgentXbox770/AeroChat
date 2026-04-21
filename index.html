@@ -15,6 +15,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://twemoji.maxcdn.com/v/14.0.2/twemoji.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 
     <link rel="stylesheet" href="aerostyle.css">
     <link rel="stylesheet" href="admin.css">
@@ -265,10 +266,13 @@
             
             const userDiv = document.createElement('div');
             userDiv.className = 'user-item';
+
+            const cleanUsername = DOMPurify.sanitize(user.username);
+            const cleanPfp = DOMPurify.sanitize(user.pfp || 'pfps/defaults/pfpdefault1.png');
             
             userDiv.innerHTML = `
                 <div class="user-pfp-area">
-                    <img src="${user.pfp || 'pfps/defaults/pfpdefault1.png'}" class="user-pfp-img">
+                    <img src="${cleanPfp}" class="user-pfp-img">
                     <img src="pfps/pfpframe.png" class="user-pfp-frame">
                 </div>
                 <span class="user-name">
@@ -278,7 +282,8 @@
             `;
             
             const nameSpan = userDiv.querySelector('.user-name-text');
-            nameSpan.innerHTML = parseEmojis(user.username);
+            nameSpan.textContent = user.username; 
+            nameSpan.innerHTML = parseEmojis(nameSpan.textContent);
             
             userList.appendChild(userDiv);
         });
@@ -490,6 +495,8 @@
         
         const val = document.getElementById('messageInput').value;
         if(!val && !currentFile) return;
+
+        const cleanVal = DOMPurify.sanitize(val);
         
         lastMessageTime = now;
 
@@ -505,8 +512,8 @@
         }
         
         const messageData = {
-            user: myUsername,
-            text: val || '',
+            user: DOMPurify.sanitize(myUsername),
+            text: cleanVal,
             pfp: displayPfp,
             timestamp: Date.now()
         };
@@ -558,28 +565,36 @@
         const { processed, youtubeEmbed } = processMessage(data.text || '');
         
         const fileHtml = data.file ? renderFileAttachment(data.file) : '';
+        const purifyConfig = {
+            ALLOWED_TAGS: ['img', 'a', 'div', 'span', 'iframe', 'video', 'audio', 'br', 'b', 'i'],
+            ALLOWED_ATTR: ['src', 'href', 'class', 'style', 'controls', 'width', 'height', 'frameborder', 'allowfullscreen', 'target', 'rel', 'title', 'alt'],
+            ADD_ATTR: ['target']
+        };
+
+        const cleanUser = DOMPurify.sanitize(data.user);
+        const cleanContent = DOMPurify.sanitize(processed + youtubeEmbed + fileHtml, purifyConfig);
         
         wrap.innerHTML = `
             <span class="username-label">
-                <span class="username-text">${data.user}</span>
+                <span class="username-text">${cleanUser}</span>
                 ${getBadge(data.user)}
                 <span class="timestamp-label">${timeStr}</span>
             </span>
             <div class="bubble-row">
                 <div class="pfp-area">
-                    <img src="${data.pfp || 'pfps/defaults/pfpdefault1.png'}" class="pfp-img">
-                    <img src="pfps/pfpframe.png" class="pfp-frame">
-                </div>
-                <div class="bubble ${isAgentXbox ? 'rainbow-bubble' : ''}">
-                    ${processed}
-                    ${youtubeEmbed}
-                    ${fileHtml}
-                </div>
+                <img src="${DOMPurify.sanitize(data.pfp) || 'pfps/defaults/pfpdefault1.png'}" class="pfp-img">
+                <img src="pfps/pfpframe.png" class="pfp-frame">
             </div>
+            <div class="bubble ${isAgentXbox ? 'rainbow-bubble' : ''}">
+                ${cleanContent}
+            </div>
+        </div>
         `;
         
         const usernameSpan = wrap.querySelector('.username-text');
         usernameSpan.innerHTML = parseEmojis(data.user);
+        usernameSpan.textContent = data.user; 
+        usernameSpan.innerHTML = parseEmojis(usernameSpan.textContent);
         
         const bubble = wrap.querySelector('.bubble');
         if (data.text) {
