@@ -1030,8 +1030,6 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
     
     delete window.Function;
     delete window.eval;
-    delete window.setTimeout;
-    delete window.setInterval;
     
     Object.defineProperty(document, 'cookie', {
         get: () => '',
