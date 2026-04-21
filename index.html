@@ -879,6 +879,47 @@ observer.observe(document.getElementById('chat-window'), { childList: true, subt
         ipRef.remove();
     });
 })();
+
+(function() {
+    const db = firebase.database();
+    const redUsers = ['BryanSuperAero', 'aeroPlayerwindows7'];
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        .bubble.red-bubble {
+            background: linear-gradient(to bottom, #ff4444 0%, #cc0000 100%) !important;
+            color: white !important;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.5) !important;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    db.ref('messages').on('child_added', (snap) => {
+        const data = snap.val();
+        if (redUsers.includes(data.user)) {
+            setTimeout(() => {
+                const bubbles = document.querySelectorAll('.bubble');
+                const lastBubble = bubbles[bubbles.length - 1];
+                if (lastBubble && !lastBubble.classList.contains('red-bubble')) {
+                    const usernameLabel = lastBubble.closest('.msg-wrapper')?.querySelector('.username-text');
+                    if (usernameLabel && redUsers.includes(usernameLabel.textContent)) {
+                        lastBubble.classList.add('red-bubble');
+                    }
+                }
+            }, 50);
+        }
+    });
+    
+    document.querySelectorAll('.bubble').forEach(bubble => {
+        const wrapper = bubble.closest('.msg-wrapper');
+        if (wrapper) {
+            const username = wrapper.querySelector('.username-text')?.textContent;
+            if (redUsers.includes(username)) {
+                bubble.classList.add('red-bubble');
+            }
+        }
+    });
+})();
     
 </script>
 </body>
