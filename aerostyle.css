@@ -257,3 +257,7 @@
             height: 1.5em; width: auto; margin: 0 2px;
             vertical-align: middle; display: inline-block;
         }
+
+        .grecaptcha-badge { 
+            display: none !important;
+        }
