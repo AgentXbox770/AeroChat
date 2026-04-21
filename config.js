@@ -1,9 +1,8 @@
 const firebaseConfig = {
-  apiKey: "AIzaSyCXhWdKsuOWqI9mejUx3khzrvibVWJKBz8",
-  authDomain: "aerochat-c16d6.firebaseapp.com",
-  databaseURL: "https://aerochat-c16d6-default-rtdb.firebaseio.com",
-  projectId: "aerochat-c16d6",
-  storageBucket: "aerochat-c16d6.firebasestorage.app",
-  messagingSenderId: "417272842430",
-  appId: "1:417272842430:web:ff0da5f22c90156d28f6ef"
+  apiKey: "AIzaSyDleY28-z5sSpCWoPHIPi43fqwqHTNONl0",
+  authDomain: "newaerochat.firebaseapp.com",
+  projectId: "newaerochat",
+  storageBucket: "newaerochat.firebasestorage.app",
+  messagingSenderId: "838837161152",
+  appId: "1:838837161152:web:f7800243e005892329b125"
 };
