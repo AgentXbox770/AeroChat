@@ -1,7 +1,7 @@
 @font-face {
-    font-family: 'Aero';
-    src: url('AERO_03.otf') format('opentype');
-}
+            font-family: 'Aero';
+            src: url('AERO_03.otf') format('opentype');
+        }
 
         :root {
             --aero-blue: linear-gradient(to bottom, #7abcff 0%, #4096ee 50%, #11599e 51%, #3982c6 100%);
@@ -258,6 +258,6 @@
             vertical-align: middle; display: inline-block;
         }
 
-	      .grecaptcha-badge { 
-            display: none !important;
-        }
+        .grecaptcha-badge { 
+            display: none !important;
+        }
