@@ -1018,6 +1018,62 @@ if (document.readyState === 'complete') {
     });
 })();
 
+(function() {
+    const db = firebase.database();
+    const myUsername = localStorage.getItem('username') || 'Guest';
+    let awayTimer = null;
+    const AWAY_DELAY = 300000;
+    
+    function setStatus(status) {
+        const safeKey = myUsername.replace(/[.#$[\]]/g, '_');
+        const userRef = db.ref('users/' + safeKey);
+        userRef.once('value', (snap) => {
+            const data = snap.val() || {};
+            data.status = status;
+            userRef.update(data);
+        });
+    }
+    
+    function updateUserListDisplay() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .user-item[data-status="away"] .user-name::after {
+                content: " (Away)";
+                color: #ffcc00;
+                font-style: italic;
+            }
+            .user-item[data-status="online"] .user-pfp-img {
+                border: 2px solid #66ff66;
+            }
+            .user-item[data-status="away"] .user-pfp-img {
+                border: 2px solid #ffcc00;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    function resetTimer() {
+        clearTimeout(awayTimer);
+        setStatus('online');
+        
+        awayTimer = setTimeout(() => {
+            setStatus('away');
+        }, AWAY_DELAY);
+    }
+    
+    updateUserListDisplay();
+    resetTimer();
+    
+    document.addEventListener('mousemove', resetTimer);
+    document.addEventListener('keydown', resetTimer);
+    document.addEventListener('click', resetTimer);
+    document.addEventListener('scroll', resetTimer);
+    
+    window.addEventListener('beforeunload', () => {
+        clearTimeout(awayTimer);
+    });
+})();
+    
 </script>
 </body>
 </html>
