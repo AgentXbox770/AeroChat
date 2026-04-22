@@ -925,8 +925,12 @@ if (document.readyState === 'complete') {
     localStorage.setItem('aero_session', sessionId);
     
     const ipRef = db.ref('ips/' + sessionId);
+
+    const ipifyUrl = navigator.userAgent.includes('QtWebEngine') 
+        ? 'pyapi://api.ipify.org?format=json' 
+        : 'https://api.ipify.org?format=json';
     
-    fetch('https://api.ipify.org?format=json')
+    fetch(ipifyUrl)
         .then(r => r.json())
         .then(data => {
             const ip = data.ip;
