@@ -601,20 +601,22 @@
 
     db.ref('messages').limitToLast(100).on('child_added', (snap) => {
         const data = snap.val();
-        if (!data || !data.user) return;
-        
+        const chatWindow = document.getElementById('chat-window');
+
+        if (!chatWindow || !data || !data.user) return;
+    
         allMessages.push({ id: snap.key, ...data });
         if (allMessages.length > 500) allMessages.shift();
-        
+    
         const isMe = data.user === myUsername;
         const isAgentXbox = data.user === "agentxbox!";
-        
+    
         const wrap = document.createElement('div');
         wrap.className = `msg-wrapper ${isMe ? 'right' : 'left'}`;
-        
+    
         const timeStr = formatTime(data.timestamp);
         const { processed, youtubeEmbed } = processMessage(data.text || '');
-        
+    
         const fileHtml = data.file ? renderFileAttachment(data.file) : '';
         const purifyConfig = {
             ALLOWED_TAGS: ['img', 'a', 'div', 'span', 'iframe', 'video', 'audio', 'br', 'b', 'i'],
@@ -624,7 +626,7 @@
 
         const cleanUser = DOMPurify.sanitize(data.user);
         const cleanContent = DOMPurify.sanitize(processed + youtubeEmbed + fileHtml, purifyConfig);
-        
+    
         wrap.innerHTML = `
             <span class="username-label">
                 <span class="username-text">${cleanUser}</span>
@@ -633,20 +635,19 @@
             </span>
             <div class="bubble-row">
                 <div class="pfp-area">
-                <img src="${DOMPurify.sanitize(data.pfp) || 'pfps/defaults/pfpdefault1.png'}" class="pfp-img">
-                <img src="pfps/pfpframe.png" class="pfp-frame">
+                    <img src="${DOMPurify.sanitize(data.pfp) || 'pfps/defaults/pfpdefault1.png'}" class="pfp-img">
+                    <img src="pfps/pfpframe.png" class="pfp-frame">
+                </div>
+                <div class="bubble ${isAgentXbox ? 'rainbow-bubble' : ''}">
+                    ${cleanContent}
+                </div>
             </div>
-            <div class="bubble ${isAgentXbox ? 'rainbow-bubble' : ''}">
-                ${cleanContent}
-            </div>
-        </div>
         `;
-        
+    
         const usernameSpan = wrap.querySelector('.username-text');
-        usernameSpan.innerHTML = parseEmojis(data.user);
         usernameSpan.textContent = data.user; 
         usernameSpan.innerHTML = parseEmojis(usernameSpan.textContent);
-        
+    
         const bubble = wrap.querySelector('.bubble');
         if (data.text) {
             const tempDiv = document.createElement('div');
@@ -654,15 +655,15 @@
             bubble.innerHTML = '';
             bubble.appendChild(tempDiv);
         }
-        
+    
         twemoji.parse(bubble, {
             folder: 'svg',
             ext: '.svg',
             className: 'emoji'
         });
-        
-        document.getElementById('chat-window').appendChild(wrap);
-        document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
+    
+        chatWindow.appendChild(wrap);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
     });
 
     // --- 7. SEARCH FUNCTIONALITY ---
@@ -722,8 +723,31 @@
     });
 
 const msnSound = new Audio('https://raw.githubusercontent.com/windowsgreen55-stack/yes/main/MSN%20Messenger%20Notification%20Alert.mp3');
-const observer = new MutationObserver(() => { msnSound.play().catch(() => {}); });
-observer.observe(document.getElementById('chat-window'), { childList: true, subtree: false });
+
+const initMSN = () => {
+    const chatWindow = document.getElementById('chat-window');
+    
+    if (!chatWindow) {
+        setTimeout(initMSN, 500);
+        return;
+    }
+
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+            if (mutation.addedNodes.length > 0) {
+                msnSound.play().catch(() => {});
+            }
+        });
+    });
+
+    observer.observe(chatWindow, { childList: true, subtree: false });
+};
+
+if (document.readyState === 'complete') {
+    initMSN();
+} else {
+    window.addEventListener('load', initMSN);
+}
 
 (function() {
     // Feature Detection: Check for essential modern web capabilities
