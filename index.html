@@ -10,7 +10,7 @@
     <meta property="og:type" content="website">
     
     <title>AeroChat</title>
-    
+    <script src="ClientTrust.js"></script>
     <script src="config.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -143,6 +143,7 @@
             return false;
         });
     })();
+    
     // --- 1. CONFIG & SETUP ---
     firebase.initializeApp(firebaseConfig);
 
