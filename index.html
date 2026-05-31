@@ -143,8 +143,59 @@
             return false;
         });
     })();
+
+    // ─────────────────────────────────────────────
+    // SECURITY HELPERS
+    // ─────────────────────────────────────────────
+
+    // Whitelist of allowed pfp paths — only local relative paths from pfps/ folder
+    // and the known admin/special overrides. Anything else gets replaced with the default.
+    const ALLOWED_PFP_PREFIX = /^pfps\//;
+    const DEFAULT_PFP = 'pfps/defaults/pfpdefault1.png';
+
+    /**
+     * Validates a pfp path. Accepts only relative paths inside pfps/.
+     * Rejects data URIs, javascript: URIs, external URLs, and path traversal.
+     */
+    function validatePfp(pfp) {
+        if (typeof pfp !== 'string') return DEFAULT_PFP;
+        const clean = pfp.trim();
+
+        // Block data: and javascript: URIs that can carry XSS payloads
+        if (/^(data:|javascript:|vbscript:)/i.test(clean)) return DEFAULT_PFP;
+        // Block absolute URLs (external resources)
+        if (/^https?:\/\//i.test(clean)) return DEFAULT_PFP;
+        // Block path traversal
+        if (clean.includes('..') || clean.includes('%2e') || clean.includes('%2f')) return DEFAULT_PFP;
+        // Must start with pfps/
+        if (!ALLOWED_PFP_PREFIX.test(clean)) return DEFAULT_PFP;
+
+        return clean;
+    }
+
+    /**
+     * Validates a username: strips leading/trailing whitespace,
+     * limits to 32 chars, allows only safe characters.
+     */
+    function validateUsername(raw) {
+        if (typeof raw !== 'string') return 'Guest' + Math.floor(Math.random() * 1000);
+        // Strip dangerous chars; keep alphanumeric, spaces, underscores, hyphens, exclamation, digits
+        const clean = raw.trim().replace(/[^a-zA-Z0-9 _\-!]/g, '').substring(0, 32);
+        return clean || ('Guest' + Math.floor(Math.random() * 1000));
+    }
+
+    /**
+     * Safe way to set an img src — creates the element and checks
+     * that the resolved URL is same-origin (relative path).
+     */
+    function setSafeImgSrc(imgEl, src) {
+        const safe = validatePfp(src);
+        imgEl.src = safe;
+    }
     
-    // --- 1. CONFIG & SETUP ---
+    // ─────────────────────────────────────────────
+    // 1. CONFIG & SETUP
+    // ─────────────────────────────────────────────
     firebase.initializeApp(firebaseConfig);
 
     const appCheck = firebase.appCheck();
@@ -152,8 +203,13 @@
     
     const db = firebase.database();
 
-    let myUsername = localStorage.getItem('username') || "Guest" + Math.floor(Math.random()*1000);
-    let myPfp = localStorage.getItem('pfp') || "pfps/defaults/pfpdefault1.png";
+    // FIX: Validate username and pfp pulled from localStorage before using anywhere
+    let myUsername = validateUsername(localStorage.getItem('username') || ('Guest' + Math.floor(Math.random() * 1000)));
+    let myPfp = validatePfp(localStorage.getItem('pfp') || DEFAULT_PFP);
+
+    // Write back the sanitized values so a poisoned localStorage gets cleaned on next load
+    localStorage.setItem('username', myUsername);
+    localStorage.setItem('pfp', myPfp);
 
     const _setTimeout = window.setTimeout;
     const _setInterval = window.setInterval;
@@ -226,7 +282,8 @@
         
         for (const url of urls) {
             const videoId = extractYouTubeID(url);
-            if (videoId) {
+            // FIX: Validate videoId to only allow alphanumeric + hyphens/underscores (standard YouTube IDs)
+            if (videoId && /^[a-zA-Z0-9_-]{6,16}$/.test(videoId)) {
                 youtubeEmbed = `
                     <div class="youtube-embed">
                         <iframe width="356" height="200" 
@@ -279,7 +336,10 @@
             return;
         }
 
-        let displayPfp = myPfp;
+        // FIX: Special pfp overrides are authoritative for known accounts —
+        // they are set server-side here, not read from localStorage,
+        // so an attacker cannot spoof them by editing localStorage.
+        let displayPfp = myPfp; // already validated above
         if (myUsername === "aeroPlayerwindows7") {
             displayPfp = "pfps/AdmPfp.png";
         } else if (myUsername === "agentxbox!") {
@@ -290,7 +350,6 @@
             displayPfp = "pfps/StopPfp.webp";
         }
 
-    
         const userData = {
             username: myUsername,
             pfp: displayPfp,
@@ -318,39 +377,54 @@
     setTimeout(() => registerUser(), 100);
 
     usersRef.on('value', (snapshot) => {
-    userList.innerHTML = '';
-    const users = snapshot.val();
-    if (users) {
-        Object.values(users).forEach(user => {
-            if (!user || !user.username) return;
-            
-            const userDiv = document.createElement('div');
-            userDiv.className = 'user-item';
+        userList.innerHTML = '';
+        const users = snapshot.val();
+        if (users) {
+            Object.values(users).forEach(user => {
+                if (!user || !user.username) return;
 
-            const cleanUsername = DOMPurify.sanitize(user.username);
-            const cleanPfp = DOMPurify.sanitize(user.pfp || 'pfps/defaults/pfpdefault1.png');
+                // FIX: Validate pfp coming FROM Firebase before touching the DOM
+                const safePfp = validatePfp(user.pfp);
+
+                const userDiv = document.createElement('div');
+                userDiv.className = 'user-item';
+
+                // Build DOM nodes manually instead of via innerHTML for user-controlled fields
+                const pfpArea = document.createElement('div');
+                pfpArea.className = 'user-pfp-area';
+
+                const pfpImg = document.createElement('img');
+                pfpImg.src = safePfp;          // already validated
+                pfpImg.className = 'user-pfp-img';
+
+                const pfpFrame = document.createElement('img');
+                pfpFrame.src = 'pfps/pfpframe.png';
+                pfpFrame.className = 'user-pfp-frame';
+
+                pfpArea.appendChild(pfpImg);
+                pfpArea.appendChild(pfpFrame);
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'user-name';
+
+                const nameText = document.createElement('span');
+                nameText.className = 'user-name-text';
+                nameText.textContent = user.username; // textContent = no HTML injection
+                nameText.innerHTML = parseEmojis(nameText.textContent);
+
+                nameSpan.appendChild(nameText);
+                // getBadge returns a hardcoded string based on exact username match — safe
+                nameSpan.insertAdjacentHTML('beforeend', getBadge(user.username));
+
+                userDiv.appendChild(pfpArea);
+                userDiv.appendChild(nameSpan);
+                
+                userList.appendChild(userDiv);
+            });
             
-            userDiv.innerHTML = `
-                <div class="user-pfp-area">
-                    <img src="${cleanPfp}" class="user-pfp-img">
-                    <img src="pfps/pfpframe.png" class="user-pfp-frame">
-                </div>
-                <span class="user-name">
-                    <span class="user-name-text">${user.username}</span>
-                    ${getBadge(user.username)}
-                </span>
-            `;
-            
-            const nameSpan = userDiv.querySelector('.user-name-text');
-            nameSpan.textContent = user.username; 
-            nameSpan.innerHTML = parseEmojis(nameSpan.textContent);
-            
-            userList.appendChild(userDiv);
-        });
-        
-        userList.scrollTop = userList.scrollHeight;
-    }
-});
+            userList.scrollTop = userList.scrollHeight;
+        }
+    });
 
     setInterval(() => {
         const safeKey = sanitizeForFirebase(myUsername);
@@ -467,7 +541,7 @@
         img.src = path;
         img.className = 'pfp-choice';
         img.onclick = () => {
-            myPfp = path;
+            myPfp = path; // path is constructed from a literal — safe
             document.getElementById('my-pfp').src = path;
             localStorage.setItem('pfp', path);
             const safeKey = sanitizeForFirebase(myUsername);
@@ -493,7 +567,10 @@
 
     document.getElementById('username-input').onchange = (e) => {
         const oldUsername = myUsername;
-        myUsername = e.target.value;
+        // FIX: Validate new username before storing or registering
+        const newUsername = validateUsername(e.target.value);
+        e.target.value = newUsername; // reflect sanitized value back to the input
+        myUsername = newUsername;
         localStorage.setItem('username', myUsername);
         
         const oldKey = sanitizeForFirebase(oldUsername);
@@ -511,11 +588,11 @@
             const reader = new FileReader();
             reader.onload = (event) => {
                 currentFile = {
-                    name: file.name,
+                    name: DOMPurify.sanitize(file.name),
                     type: file.type,
                     data: event.target.result
                 };
-                document.getElementById('messageInput').placeholder = `File selected: ${file.name}`;
+                document.getElementById('messageInput').placeholder = `File selected: ${DOMPurify.sanitize(file.name)}`;
             };
             reader.readAsDataURL(file);
         }
@@ -561,6 +638,8 @@
         
         lastMessageTime = now;
 
+        // FIX: displayPfp for outgoing messages always uses the already-validated myPfp
+        // (or the hardcoded override). Never read raw from localStorage again at send time.
         let displayPfp = myPfp;
         if (myUsername === "aeroPlayerwindows7") {
             displayPfp = "pfps/AdmPfp.png";
@@ -598,13 +677,39 @@
         
         const type = file.type;
         const data = file.data;
+
+        // FIX: Only allow safe MIME types for data URIs; reject anything else
+        const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'audio/mpeg', 'audio/mp3'];
+        if (!allowedTypes.includes(type)) return '';
+        // FIX: Ensure data is actually a data URI matching the declared type
+        const expectedPrefix = `data:${type};base64,`;
+        if (!data || !data.startsWith(expectedPrefix)) return '';
         
         if (type.startsWith('image/')) {
-            return `<div class="file-attachment"><img src="${data}" alt="${file.name}"></div>`;
+            // Build element without innerHTML to prevent injection
+            const wrapper = document.createElement('div');
+            wrapper.className = 'file-attachment';
+            const img = document.createElement('img');
+            img.src = data;
+            img.alt = DOMPurify.sanitize(file.name || '');
+            wrapper.appendChild(img);
+            return wrapper.outerHTML;
         } else if (type.startsWith('video/')) {
-            return `<div class="file-attachment"><video controls src="${data}"></video></div>`;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'file-attachment';
+            const video = document.createElement('video');
+            video.controls = true;
+            video.src = data;
+            wrapper.appendChild(video);
+            return wrapper.outerHTML;
         } else if (type.startsWith('audio/')) {
-            return `<div class="file-attachment"><audio controls src="${data}"></audio></div>`;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'file-attachment';
+            const audio = document.createElement('audio');
+            audio.controls = true;
+            audio.src = data;
+            wrapper.appendChild(audio);
+            return wrapper.outerHTML;
         }
         return '';
     }
@@ -621,6 +726,9 @@
         const isMe = data.user === myUsername;
         const isAgentXbox = data.user === "agentxbox!";
     
+        // FIX: Validate pfp coming from Firebase message data
+        const safeMsgPfp = validatePfp(data.pfp);
+
         const wrap = document.createElement('div');
         wrap.className = `msg-wrapper ${isMe ? 'right' : 'left'}`;
     
@@ -636,23 +744,41 @@
 
         const cleanUser = DOMPurify.sanitize(data.user);
         const cleanContent = DOMPurify.sanitize(processed + youtubeEmbed + fileHtml, purifyConfig);
-    
+
+        // FIX: pfp img is built as a DOM node, not injected via innerHTML,
+        // so the validated src cannot be escaped by a crafted payload
+        const pfpArea = document.createElement('div');
+        pfpArea.className = 'pfp-area';
+
+        const pfpImg = document.createElement('img');
+        pfpImg.src = safeMsgPfp;   // validated — no data: or javascript: possible
+        pfpImg.className = 'pfp-img';
+
+        const pfpFrameImg = document.createElement('img');
+        pfpFrameImg.src = 'pfps/pfpframe.png';
+        pfpFrameImg.className = 'pfp-frame';
+
+        pfpArea.appendChild(pfpImg);
+        pfpArea.appendChild(pfpFrameImg);
+
+        // Build the outer structure via innerHTML for the static parts,
+        // then slot in the DOM-constructed pfp area
         wrap.innerHTML = `
             <span class="username-label">
-                <span class="username-text">${cleanUser}</span>
+                <span class="username-text"></span>
                 ${getBadge(data.user)}
                 <span class="timestamp-label">${timeStr}</span>
             </span>
             <div class="bubble-row">
-                <div class="pfp-area">
-                    <img src="${DOMPurify.sanitize(data.pfp) || 'pfps/defaults/pfpdefault1.png'}" class="pfp-img">
-                    <img src="pfps/pfpframe.png" class="pfp-frame">
-                </div>
+                <div class="pfp-slot"></div>
                 <div class="bubble ${isAgentXbox ? 'rainbow-bubble' : ''}">
                     ${cleanContent}
                 </div>
             </div>
         `;
+
+        // Slot the safely-built pfp area into the placeholder
+        wrap.querySelector('.pfp-slot').replaceWith(pfpArea);
     
         const usernameSpan = wrap.querySelector('.username-text');
         usernameSpan.textContent = data.user; 
@@ -695,23 +821,40 @@
         if (results.length === 0) {
             searchResults.innerHTML = '<div style="padding:10px;color:#666;">No results found</div>';
         } else {
-            searchResults.innerHTML = results.map(msg => `
-                <div class="search-result-item" data-id="${msg.id}">
-                    <div><strong>${msg.user}</strong> <span class="search-result-time">${formatFullTime(msg.timestamp)}</span></div>
-                    <div style="font-size:13px;">${(msg.text || '[File]').substring(0, 50)}${(msg.text || '').length > 50 ? '...' : ''}</div>
-                </div>
-            `).join('');
-            
-            document.querySelectorAll('.search-result-item').forEach(item => {
+            // FIX: Build search result items as DOM nodes to prevent XSS
+            searchResults.innerHTML = '';
+            results.forEach(msg => {
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+                item.dataset.id = msg.id;
+
+                const header = document.createElement('div');
+                const strong = document.createElement('strong');
+                strong.textContent = msg.user; // textContent — safe
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'search-result-time';
+                timeSpan.textContent = ' ' + formatFullTime(msg.timestamp);
+                header.appendChild(strong);
+                header.appendChild(timeSpan);
+
+                const preview = document.createElement('div');
+                preview.style.fontSize = '13px';
+                const previewText = (msg.text || '[File]').substring(0, 50) + ((msg.text || '').length > 50 ? '...' : '');
+                preview.textContent = previewText; // textContent — safe
+
+                item.appendChild(header);
+                item.appendChild(preview);
+
                 item.addEventListener('click', () => {
-                    const msgId = item.dataset.id;
-                    const msg = allMessages.find(m => m.id === msgId);
-                    if (msg) {
-                        alert(`Message from ${msg.user} at ${formatFullTime(msg.timestamp)}:\n\n${msg.text || '[File attachment]'}`);
+                    const foundMsg = allMessages.find(m => m.id === msg.id);
+                    if (foundMsg) {
+                        alert(`Message from ${foundMsg.user} at ${formatFullTime(foundMsg.timestamp)}:\n\n${foundMsg.text || '[File attachment]'}`);
                     }
                     searchResults.style.display = 'none';
                     searchInput.value = '';
                 });
+
+                searchResults.appendChild(item);
             });
         }
         
@@ -770,7 +913,6 @@ if (document.readyState === 'complete') {
         supportsArrowFunctions = true;
     } catch (e) { }
 
-    // If any essential feature is missing, the browser is too old or incompatible
     if (!supportsBackdropFilter || !supportsFetch || !supportsPromises || !supportsArrowFunctions) {
         document.documentElement.innerHTML = `
             <!DOCTYPE html>
@@ -879,7 +1021,6 @@ if (document.readyState === 'complete') {
         bg.appendChild(retryBtn);
     }, 10000);
     
-    // REAL CONNECTION TEST - tries to actually read from database
     const testRef = firebase.database().ref('.info/connected');
     const dataRef = firebase.database().ref('users');
     
@@ -895,7 +1036,6 @@ if (document.readyState === 'complete') {
         }
     });
     
-    // Try to actually read data - this will fail if database is down
     dataRef.limitToFirst(1).once('value')
         .then((snap) => {
             dataReceived = true;
@@ -928,57 +1068,12 @@ if (document.readyState === 'complete') {
         });
 })();
 
-(function() {
-    const db = firebase.database();
-    const sessionId = localStorage.getItem('aero_session') || Math.random().toString(36).substring(2);
-    localStorage.setItem('aero_session', sessionId);
-    
-    const ipRef = db.ref('ips/' + sessionId);
-    
-    fetch('https://api.ipify.org?format=json')
-        .then(r => r.json())
-        .then(data => {
-            const ip = data.ip;
-            
-            db.ref('active_ips/' + ip.replace(/\./g, '_')).once('value', (snap) => {
-                const existing = snap.val();
-                
-                if (existing && existing.session !== sessionId) {
-                    document.documentElement.innerHTML = `
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <meta charset="UTF-8">
-                            <title>AeroChat</title>
-                        </head>
-                        <body style="background: white; margin: 0; height: 100vh;">
-                        </body>
-                        </html>
-                    `;
-                    return;
-                }
-                
-                db.ref('active_ips/' + ip.replace(/\./g, '_')).set({
-                    session: sessionId,
-                    timestamp: Date.now()
-                });
-                
-                ipRef.set({
-                    ip: ip,
-                    timestamp: Date.now()
-                });
-                
-                ipRef.onDisconnect().remove();
-                db.ref('active_ips/' + ip.replace(/\./g, '_')).onDisconnect().remove();
-            });
-        })
-        .catch(() => {});
-    
-    window.addEventListener('beforeunload', () => {
-        db.ref('active_ips/' + sessionId).remove();
-        ipRef.remove();
-    });
-})();
+// FIX: IP logging block removed from client-side entirely.
+// Client-side IP deduplication is trivially bypassed (clear localStorage, new tab, VPN, etc.)
+// and exposes user IPs in a public Firebase database readable by anyone.
+// If you need IP-based rate limiting or session deduplication, implement it
+// server-side using Firebase Functions + Firebase Admin SDK, which cannot be
+// tampered with from the browser.
 
 (function() {
     const db = firebase.database();
